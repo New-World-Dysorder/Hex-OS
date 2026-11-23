@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Grid Log — Neon Vigil</title>
+  
+  <link rel="stylesheet" href="../nv-terminal-tokens.css">
+  <link rel="stylesheet" href="../nv-ticker.css">
+  <link rel="stylesheet" href="../nv-commands.css">
+  <link rel="stylesheet" href="../nv-sprite.css">
+  <link rel="stylesheet" href="../nv-symbiont-theme.css">
+  <script src="../nv-symbiont-theme.js"></script>
+  <script type="importmap">{ "imports": { "three": "https://unpkg.com/three@0.187.0/build/three.webgpu.js", "three/tsl": "https://unpkg.com/three@0.187.0/build/three.tsl.js", "three/addons/": "https://unpkg.com/three@0.187.0/examples/jsm/" } }</script>
+  <style>
+    /* Grid Log — the merged wiki (Nov 20, 2026). The Web Bible (v18) folded
+       into the Grid Log: one encyclopedia surface, wiki format, Hex OS.
+       Content renders from bible-data.js, generated from the Web Bible's
+       bible.json; the Bible master in the Master Codex drive stays the
+       source of truth underneath. Fragment field sits on the outer frame
+       only — never behind entry text (unified Hex OS style, Grid Log lane). */
+    body { background:#050508; color:#f5f0ff; font-family:ui-monospace, Menlo, monospace; font-size:18px; margin:0; }
+    #gl-bg { position:fixed; inset:0; z-index:0; pointer-events:none; }
+    main { position:relative; z-index:2; max-width:860px; margin:0 auto; padding:0 16px 24px; }
+    .card { border:1px solid var(--nv-accent,#6366f1); border-radius:16px; background-color:rgba(15,9,27,.86); background-image:var(--nv-sheen); padding:20px 22px; margin-top:16px; }
+    h1 { font-size:44px; letter-spacing:2px; margin:0 0 4px; color:#f5f0ff; }
+    .gl-sub { opacity:.85; margin:0 0 14px; }
+    .gl-search { width:100%; box-sizing:border-box; background:#0a0618; border:1px solid var(--nv-accent,#6366f1); border-radius:10px; color:#f5f0ff; font-family:inherit; font-size:20px; padding:10px 14px; }
+    .gl-search:focus { outline:2px solid var(--nv-accent,#6366f1); }
+    h2.gl-sec { font-size:26px; margin:0 0 8px; letter-spacing:1px; }
+    ul.gl-entries { list-style:none; margin:0; padding:0; columns:2; column-gap:28px; }
+    @media (max-width:640px){ ul.gl-entries{ columns:1; } }
+    ul.gl-entries li { break-inside:avoid; padding:3px 0; }
+    ul.gl-entries a { color:#d9ccff; text-decoration:none; }
+    ul.gl-entries a:hover { text-decoration:underline; }
+    .gl-kicker { opacity:.75; font-size:16px; letter-spacing:1px; text-transform:uppercase; }
+    .gl-nav { display:flex; justify-content:space-between; gap:12px; margin-top:18px; flex-wrap:wrap; }
+    .gl-nav a, a.gl-back { color:#d9ccff; }
+    /* Loading shimmer: the shared .nv-loader-shimmer class (nv-terminal-tokens.css) carries the sweep — aligned Nov 22, 2026, not duplicated here. */
+    .gl-loading { font-size:24px; letter-spacing:2px; }
+    .gl-note { opacity:.8; font-size:16px; }
+    #gl-webgpu { position:fixed; inset:0; z-index:0; pointer-events:none; }
+    #gl-bg { display:none; }
+    #gl-bg.on { display:block; }
+    .card { animation:glflip .45s ease both; }
+    @keyframes glflip { from { opacity:0; transform:perspective(900px) rotateY(5deg) translateY(8px); } to { opacity:1; transform:none; } }
+    @media (prefers-reduced-motion: reduce){ .card, .gl-pcard{ animation:none; } }
+    .gl-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(148px,1fr)); gap:12px; margin:12px 0 4px; }
+    .gl-pcard { display:block; border:1px solid var(--nv-accent,#6366f1); border-radius:14px; overflow:hidden; background-color:rgba(15,9,27,.86); background-image:var(--nv-sheen); text-decoration:none; animation:glflip .45s ease both; }
+    .gl-pcard img { display:block; width:100%; aspect-ratio:3/4; object-fit:cover; object-position:top center; background:#0a0616; }
+    .gl-pcard .gl-pname { display:block; padding:9px 11px; font-size:16px; color:#f5f0ff; }
+    .gl-more { margin:14px 0 6px; }
+    .gl-searchwrap { position:relative; }
+    .gl-searchwrap svg { position:absolute; left:12px; top:50%; transform:translateY(-50%); width:18px; height:18px; stroke:#d9ccff; fill:none; stroke-width:2; pointer-events:none; }
+    .gl-searchwrap .gl-search { padding-left:40px; }
+    .gl-entry img { max-width:100%; height:auto; }
+    /* v18 entry styles, scoped: */
+    .gl-entry .page {min-height:297mm; padding:12.5mm 16mm 11.4mm 16mm; position:relative; overflow:hidden; border:1.2mm solid #000; background:radial-gradient(ellipse at 50% 38%, #fffdf4 0%, #fdf6e3 58%, #f7ead0 100%);}
+    .gl-entry .page::before {content:""; position:absolute; top:4mm; left:4mm; right:4mm; bottom:4mm; border:0.35mm solid #c2a059; pointer-events:none;}
+    .gl-entry .page::after {content:""; position:absolute; top:5.4mm; left:5.4mm; right:5.4mm; bottom:5.4mm; border:0.16mm solid #d9be82; pointer-events:none;}
+    .gl-entry .tabbar {display:flex; gap:1.4mm; margin-bottom:4.4mm; flex-wrap:wrap; align-items:flex-end; border-bottom:0.55mm solid #b9975b;}
+    .gl-entry .tab {font-family:ui-monospace, Menlo, monospace; font-size:8pt; letter-spacing:.05em; padding:1.4mm 2.4mm 1.1mm 2.4mm; border:0.3mm solid #c2a059; border-bottom:none; border-radius:2.6mm 2.6mm 0 0; background:#f1e3c2; color:#6b5a75; text-transform:uppercase;}
+    .gl-entry .tab.on {background:#2b1055; color:#fdf3d8; border-color:#8a6d2f; font-weight:700; padding-top:2mm;}
+    .gl-entry .tab.on.c-cyan {background:#0b5563; border-color:#0b5563;}
+    .gl-entry .tab.on.c-pink {background:#8e1e5a; border-color:#8e1e5a;}
+    .gl-entry .tab.on.c-green {background:#1d5c38; border-color:#1d5c38;}
+    .gl-entry .tab.on.c-rust {background:#7a2d12; border-color:#7a2d12;}
+    .gl-entry .tab.on.c-steel {background:#26343f; border-color:#26343f;}
+    .gl-entry .tab.on.c-gold {background:#6d5410; border-color:#6d5410;}
+    .gl-entry .kicker {font-size:8pt; letter-spacing:.18em; text-transform:uppercase; color:#8e1e5a; font-weight:700; text-align:center;}
+    .gl-entry h1 {font-family:ui-monospace, Menlo, monospace; font-size:27pt; line-height:1.05; margin:1mm 0 3mm 0; color:#2b1055;}
+    .gl-entry h2 {font-family:ui-monospace, Menlo, monospace; font-size:19pt; line-height:1.1; margin:1mm 0 1mm 0; color:#2b1055; text-align:center; border-bottom:0.55mm double #b9975b; padding-bottom:1.1mm;}
+    .gl-entry h3 {font-family:ui-monospace, Menlo, monospace; font-size:11pt; margin:3.4mm 0 1.4mm 0; text-transform:uppercase; letter-spacing:.06em; color:#5c1a4d;}
+    .gl-entry p {margin:0 0 2mm 0;}
+    .gl-entry ul {margin:0 0 2.4mm 0; padding-left:5mm;}
+    .gl-entry li {margin-bottom:1mm;}
+    .gl-entry .hero {width:100%; height:auto; max-height:66mm; object-fit:contain; background:#0d0a16; border:1.1mm solid #fffaf0; outline:0.35mm solid #b9975b; box-shadow:0 1mm 3mm rgba(43,16,85,.35);}
+    .gl-entry .hero.tall {max-height:84mm;}
+    .gl-entry .duo {display:flex; gap:3mm;}
+    .gl-entry .duo img {width:49%; max-height:60mm; object-fit:contain; background:#0d0a16; border:1mm solid #fffaf0; outline:0.35mm solid #b9975b; box-shadow:0 1mm 3mm rgba(43,16,85,.35);}
+    .gl-entry .gap {border:0.5mm dashed #8e1e5a; background:#fdf0f4; color:#8e1e5a; padding:10mm 6mm; text-align:center; font-size:10pt; font-style:italic; margin-bottom:4mm; border-radius:2mm;}
+    .gl-entry .cap {font-size:8pt; font-style:italic; color:#6d5c46; margin:1.6mm 0 2.8mm 0; text-align:center;}
+    .gl-entry table.spec {width:100%; border-collapse:collapse; margin:2mm 0 3mm 0; font-size:9.3pt;}
+    .gl-entry table.spec td {border-top:0.25mm solid #d9be82; padding:1.35mm 2mm; vertical-align:top;}
+    .gl-entry table.spec td:first-child {width:34mm; font-weight:700; color:#5c1a4d; background:rgba(185,151,91,.10); font-style:italic;}
+    .gl-entry .promptbox {background:#1d1033; color:#f5ecd2; border:0.45mm solid #b9975b; border-radius:2mm; padding:3.2mm 4mm; font-size:9.5pt; line-height:1.37; white-space:pre-wrap; margin-bottom:4mm;}
+    .gl-entry .negbox {background:#fbf0e9; border:0.3mm solid #d9a184; border-left:1.4mm solid #b3542e; border-radius:0 2mm 2mm 0; padding:2.4mm 3.6mm; margin-bottom:2.4mm;}
+    .gl-entry .alwaysbox {background:#f0f6e9; border:0.3mm solid #a9cdb6; border-left:1.4mm solid #4a7d57; border-radius:0 2mm 2mm 0; padding:2.4mm 3.6mm; margin-bottom:2.4mm;}
+    .gl-entry .foot {position:absolute; bottom:8mm; left:16mm; right:16mm; display:flex; justify-content:space-between; font-size:8pt; font-style:italic; color:#8a7a52; border-top:0.55mm double #b9975b; padding-top:1.5mm;}
+    .gl-entry .rule {height:1.6mm; background:linear-gradient(90deg,#b9975b,#8e1e5a,#0b7a8c,#b9975b); margin:3mm auto 5mm auto; width:72%; border-radius:1mm;}
+    .gl-entry .cover {background:radial-gradient(ellipse at 50% 30%, #2b1055 0%, #170b2e 62%, #0d0619 100%); color:#f7edd6; text-align:center;}
+    .gl-entry .cover h1 {font-size:40pt; color:#fff6dd; text-align:center; letter-spacing:.02em;}
+    .gl-entry .cover .kicker {color:#e58ac2; text-align:center;}
+    .gl-entry .cover .rule {margin-left:auto;margin-right:auto;}
+    .gl-entry .coverimg {width:100%; max-height:118mm; object-fit:contain; background:#000; border:1.2mm solid #f7edd6; outline:0.4mm solid #b9975b;}
+    .gl-entry .toc td {padding:2mm 2mm; border-top:0.25mm solid #d9be82; font-size:10pt;}
+    .gl-entry .toc td:first-child {font-weight:700;color:#8e1e5a;width:16mm;font-size:12pt;background:none;}
+    .gl-entry .tl {display:flex; flex-wrap:wrap; gap:4mm 5mm; margin:4mm 0;}
+    .gl-entry .tl h3 {flex:0 0 100%; margin:2mm 0 1mm 0;}
+    .gl-entry .tl .ev {position:relative; flex:1 1 42mm; border-top:0.9mm solid #b9975b; padding-top:4mm; margin-bottom:3mm;}
+    .gl-entry .tl .ev::before {content:''; position:absolute; left:0; top:-2.1mm; width:3.4mm; height:3.4mm; border-radius:50%; background:#2b1055; border:0.5mm solid #b9975b;}
+    .gl-entry .tl .yr {display:inline-block; font-weight:700; color:#fdf3d8; background:#2b1055; font-size:10pt; padding:1mm 2.5mm; border-radius:2mm; border-bottom:none; margin-bottom:1.5mm;}
+    .gl-entry svg {width:100%; height:auto; max-height:50mm; background:#fffaf0; border:0.35mm solid #b9975b;}
+    .gl-entry .small {font-size:8.5pt;color:#6d5c46;}
+    .gl-entry .cols {display:flex;gap:5mm;}
+    .gl-entry .col {flex:1;}
+    .gl-entry img.wide {display:block; width:100%; max-height:62mm; object-fit:contain; background:#0d0a16; margin-bottom:2mm; border:1.1mm solid #fffaf0; outline:0.35mm solid #b9975b; box-shadow:0 1mm 3mm rgba(43,16,85,.35);}
+    .gl-entry img.wide58 {display:block; width:100%; max-height:56mm; object-fit:contain; background:#0d0a16; margin-bottom:2mm; border:1.1mm solid #fffaf0; outline:0.35mm solid #b9975b; box-shadow:0 1mm 3mm rgba(43,16,85,.35);}
+    .gl-entry img.wide51 {display:block; width:100%; max-height:51mm; object-fit:contain; background:#0d0a16; margin-bottom:2mm; border:1.1mm solid #fffaf0; outline:0.35mm solid #b9975b; box-shadow:0 1mm 3mm rgba(43,16,85,.35);}
+    .gl-entry img.platefull {display:block; margin:0 auto; height:172mm; width:auto; max-width:100%; object-fit:contain; border:1.1mm solid #fffaf0; outline:0.35mm solid #b9975b; box-shadow:0 1mm 3mm rgba(43,16,85,.35); background:#0d0a16;}
+    .gl-entry .plates {display:flex; gap:3mm; justify-content:center; margin-bottom:2mm;}
+    .gl-entry .plates img {height:102mm; width:auto; max-width:49%; object-fit:contain; background:#0d0a16; border:1mm solid #fffaf0; outline:0.35mm solid #b9975b; box-shadow:0 1mm 3mm rgba(43,16,85,.35);}
+    .gl-entry .platescap {text-align:left;}
+    .gl-entry .tagline {font-size:12pt;color:#e9dcff;line-height:1.45;font-style:italic;}
+    .gl-entry .shell {position:sticky;top:0;z-index:50;background:#20152f;color:#f6e8d4;padding:12px 16px;display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+    .gl-entry .shell a {color:#f5d78b}
+    .gl-entry .shell input {padding:7px;border-radius:5px;max-width:240px}
+    .gl-entry .entry {max-width:210mm;margin:20px auto;scroll-margin-top:95px}
+    .gl-entry .page {min-height:unset}
+    .gl-entry .asset-figure {margin:1.5mm 0 3mm}
+    .gl-entry .asset-figure img {display:block;max-width:100%}
+    .gl-entry .asset-figure figcaption {font-size:8pt;text-align:center;font-style:italic;color:#715d49}
+    .gl-entry .field-entry {padding:18mm;background:#fdf6e3;border:2px solid #b9975b}
+    .gl-entry .field-entry h2 {text-align:center}
+    .gl-entry .entry-head {background:#231634;color:#fff;padding:9px 16px;display:flex;justify-content:space-between;gap:8px;font-size:12px}
+    .gl-entry .entry-head a {color:#f8d68e}
+    .gl-entry #toc {max-height:190px;overflow:auto;background:#f7ecd4;padding:12px;color:#231634;width:100%}
+    .gl-entry #toc a {color:#43165b}
+    .gl-entry #toc summary {cursor:pointer;font-weight:bold}
+    .gl-entry #toc details {margin:5px 0}
+    .gl-entry #toc ul {columns:3;list-style:none;padding:0}
+    .gl-entry #toc li {break-inside:avoid;margin:4px 0}
+    .gl-entry #toc ul {columns:1}
+    .gl-entry .entry {margin:0}
+    .gl-entry .page {padding:7mm}
+    .gl-entry .shell {position:relative}
+    .gl-entry .shell, .gl-entry .entry-head {display:none}
+    .gl-entry .entry {break-after:page;margin:0}
+    .gl-entry .page {min-height:297mm}
+    .gl-entry .nv-hover-neon {position:relative;cursor:pointer;transition:transform .35s ease, box-shadow .35s ease;}
+    .gl-entry figure:has(> img.nv-hover-neon) {position:relative;overflow:visible;}
+    .gl-entry img.nv-hover-neon:hover {transform:scale(1.03);box-shadow:0 0 0 2px #e58ac2,0 0 28px rgba(230,138,194,.9),0 0 60px rgba(139,92,246,.7);}
+    .gl-entry img.nv-hover-neon:hover::after {content:"";}
+    .gl-entry figure:has(> img.nv-hover-neon):hover::after {content:"";position:absolute;inset:-14px;border-radius:50%;pointer-events:none;
+  background:conic-gradient(from 0deg,transparent 0deg,rgba(230,138,194,.85) 40deg,transparent 90deg,rgba(139,92,246,.85) 180deg,transparent 250deg,rgba(0,229,255,.8) 310deg,transparent 360deg);
+  -webkit-mask:radial-gradient(closest-side,transparent 58%,#000 60%,#000 72%,transparent 74%);
+  mask:radial-gradient(closest-side,transparent 58%,#000 60%,#000 72%,transparent 74%);
+  animation:nv-swirl 6s linear infinite;}
+    .gl-entry to {transform:rotate(360deg);}
+    .gl-entry body.nv-astral-on::before {content:"";position:fixed;inset:-20%;z-index:40;pointer-events:none;mix-blend-mode:screen;opacity:.5;
+  background:
+    radial-gradient(circle at 30% 30%,rgba(230,138,194,.55) 0,transparent 34%),
+    radial-gradient(circle at 70% 60%,rgba(139,92,246,.55) 0,transparent 38%),
+    radial-gradient(circle at 50% 80%,rgba(0,229,255,.4) 0,transparent 30%);
+  animation:nv-astral-drift 9s ease-in-out infinite alternate;}
+    .gl-entry from {transform:rotate(-6deg) scale(1);}
+    .gl-entry to {transform:rotate(6deg) scale(1.08);}
+    .gl-entry img.nv-gif-hover {cursor:pointer;}
+    /* Entry popup + pixel thumbnails (Nov 22, 2026): entries open in a
+       glass overlay over the index — the index stays mounted behind it,
+       so the reader's place (scroll, search) is kept. Layer: above the
+       page content and ticker (z 4), below the shell back button and
+       sprite (z 8), toasts (z 9) and the Commands palette (z 10). */
+    ul.gl-entries a { display:inline-flex; align-items:center; gap:8px; }
+    .gl-thumb { width:36px; height:36px; flex:none; border-radius:6px; border:1px solid var(--nv-accent,#6366f1); background:#0a0616; image-rendering:pixelated; }
+    .gl-pop-backdrop { position:fixed; inset:0; z-index:7; background:rgba(3,2,10,.74); display:flex; align-items:center; justify-content:center; padding:18px; box-sizing:border-box; }
+    .gl-pop-backdrop[hidden] { display:none; }
+    .gl-pop-panel { width:min(860px,100%); max-height:calc(100vh - 36px); display:flex; flex-direction:column; border:1px solid var(--nv-accent,#6366f1); border-radius:16px; background-color:rgba(15,9,27,.97); background-image:var(--nv-sheen); box-shadow:0 24px 70px rgba(0,0,0,.65), 0 0 28px rgba(99,102,241,.22); animation:glflip .45s ease both; }
+    @media (prefers-reduced-motion: reduce){ .gl-pop-panel{ animation:none; } }
+    .gl-pop-head { display:flex; align-items:center; gap:12px; padding:12px 14px 12px 18px; border-bottom:1px solid rgba(255,255,255,.09); }
+    .gl-pop-title { margin:0; font-size:20px; letter-spacing:1px; color:#f5f0ff; flex:1; }
+    .gl-pop-title:focus { outline:2px solid var(--nv-accent,#6366f1); outline-offset:2px; }
+    .gl-pop-close { flex:none; width:38px; height:38px; border-radius:10px; border:1px solid var(--nv-accent,#6366f1); background:rgba(255,255,255,.04); color:#f5f0ff; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; }
+    .gl-pop-close svg { width:20px; height:20px; display:block; }
+    .gl-pop-close .nv-back-glyph-arrow { transition:transform .18s ease; }
+    .gl-pop-close:hover .nv-back-glyph-arrow { transform:translateX(-2px); }
+    .gl-pop-close:focus-visible { outline:2px solid var(--nv-accent,#6366f1); outline-offset:2px; }
+    .gl-pop-body { overflow-y:auto; padding:20px 22px; }
+  </style>
+</head>
+<body>
+  <canvas id="gl-webgpu" aria-hidden="true"></canvas>
+  <canvas id="gl-bg" aria-hidden="true"></canvas>
+  <script src="../config.js"></script>
+  <main>
+    <div class="card">
+      <h1>GRID LOG</h1>
+      <p class="gl-sub">The Neon Vigil encyclopedia. The Web Bible lives here now — every entry, in wiki form. The Bible in the Master Codex drive stays the source of truth underneath.</p>
+      <div class="gl-searchwrap"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 L21 21"/></svg><input id="gl-search" class="gl-search" type="search" placeholder="Search the Log…" autocomplete="off"></div>
+    </div>
+    <div id="gl-root" aria-busy="true"><div class="card"><p class="gl-loading nv-loader-shimmer" role="status" aria-label="Loading">LOADING THE LOG…</p></div></div>
+    <div class="nv-state" id="glEmptyState" hidden><p class="nv-state-title">Not Found</p><p class="nv-state-line">No entries match your search.</p><p><button type="button" class="nv-btn" id="glClearSearch">Clear search</button></p></div>
+    <div class="card"><p class="gl-note"><a href="/hub.html">Back to hub</a> · Grid Log — a part of Hex OS.</p></div>
+  </main>
+  <div class="gl-pop-backdrop" id="glPopBackdrop" hidden>
+    <div class="gl-pop-panel" role="dialog" aria-modal="true" aria-label="" id="glPopPanel">
+      <div class="gl-pop-head">
+        <h2 class="gl-pop-title" id="glPopTitle" tabindex="-1"></h2>
+        <button type="button" class="gl-pop-close" id="glPopClose" aria-label="Back" title="Back (Esc)"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.5 3.5h7v17h-7"/><g class="nv-back-glyph-arrow"><path d="M16.5 12H4"/><path d="M9.5 5.5 3.5 12l6 6.5"/></g></svg></button>
+      </div>
+      <div class="gl-pop-body" id="glPopBody"></div>
+    </div>
+  </div>
+  <script src="bible-data.js"></script>
+  <script>
+  (function(){
+    var D = window.NEON_BIBLE_DATA;
+    var root = document.getElementById('gl-root');
+    var search = document.getElementById('gl-search');
+    var emptyState = document.getElementById('glEmptyState');
+    var glAnnounced = false;
+    function glLoaded(){
+      root.setAttribute('aria-busy', 'false');
+      if(!glAnnounced){ glAnnounced = true; if(window.NVAnnounce) NVAnnounce('Loaded'); }
+    }
+    var clearBtn = document.getElementById('glClearSearch');
+    if(clearBtn) clearBtn.addEventListener('click', function(){ search.value = ''; renderIndex(''); search.focus(); });
+    /* Error states (Nov 22, 2026): data missing or empty is a
+       page-level failure — the shared error panel with a Reload
+       action, not a bare line. The normal path below is untouched. */
+    if(!D || !D.entries || !D.entries.length){
+      root.innerHTML = '<div class="nv-state nv-state-error"><p class="nv-state-title">Something went wrong</p><p class="nv-state-line">The Grid Log couldn\'t load its entries.</p><p><button type="button" class="nv-btn" id="glReloadBtn">Reload</button></p></div>';
+      root.setAttribute('aria-busy', 'false');
+      var reloadBtn = document.getElementById('glReloadBtn');
+      if(reloadBtn) reloadBtn.addEventListener('click', function(){ location.reload(); });
+      return;
+    }
+    var byId = {}; D.entries.forEach(function(e){ byId[e.id]=e; });
+    function secKey(name, i){
+      if(/^cover$/i.test(name)) return -1;
+      var m = name.match(/^(\d+)\s/); if(m) return parseInt(m[1],10);
+      return 100 + i;
+    }
+    var sections = D.sections.map(function(s,i){ return {name:s.name, ids:s.entry_ids||[], k:secKey(s.name,i)}; })
+      .sort(function(a,b){ return a.k-b.k; });
+    function esc(s){ return s.replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+    /* GIF-led character cards (User's ruling Nov 20, 2026, on merge Flag 2;
+       Nov 9 Grid Log rule): a character's canon GIF leads where one exists,
+       the canon portrait stands where no GIF exists. */
+    function primFor(name){
+      if(/personae/i.test(name)) return ['hexa-sigil','xero-unit-x-07','xavier-unit-x-08','indigo','the-valkyrie-val-1-to-val-18','cyphr','neon','praxia','kael-voss','himhun','indigo-s-husband','nexus-01-x-10','zed-gar'];
+      if(/crew/i.test(name)) return ['noor','alyha','star','cali-rose','jade-and-nikita-reserve-crew'];
+      return null;
+    }
+    var CARDIMG = {
+      'hexa-sigil': 'assets/hexa-animated-chatgpt.gif',
+      'xero-unit-x-07': '/portraits/NV-Xero_Portrait.png',
+      'xavier-unit-x-08': '/portraits/NV-Xavier_Portrait.png',
+      'indigo': '/portraits/NV-Indigo_Portrait.png',
+      'the-valkyrie-val-1-to-val-18': '/portraits/NV-Val17_Portrait.png',
+      'cyphr': 'assets/cyphr-animated-chatgpt.gif',
+      'neon': '/portraits/NV-Neon_Ultra_Suite_GIF_2026-11-09.gif',
+      'praxia': '/portraits/NV-Praxia_Portrait.png',
+      'himhun': '/portraits/NV-HimHun_Portrait.png',
+      'nexus-01-x-10': '/portraits/NV-Nexus_Portrait.png',
+      'noor': '/portraits/NV-Noor_Portrait.png',
+      'alyha': '/portraits/NV-Alyha_Portrait.png',
+      'star': '/portraits/NV-Star_Portrait.png',
+      'cali-rose': '/portraits/NV-Cali_Rose_Portrait.png',
+      'jade-and-nikita-reserve-crew': '/portraits/NV-Jade_Portrait.png'
+    };
+    function cardImg(e){
+      if(CARDIMG[e.id]) return CARDIMG[e.id];
+      var m = (e.html||'').match(/assets\/[A-Za-z0-9._-]+\.(?:jpg|gif|png)/);
+      return m ? m[0] : '';
+    }
+    /* Pixel thumbnails (Nov 22, 2026): every dossier row carries a small
+       pixel image of its topic — the same source the cards resolve
+       (cardImg above), drawn cover-cropped into a 12x12 canvas displayed
+       at 36px with image-rendering:pixelated. No new assets. Entries
+       with no image anywhere get a deterministic pixel-block placeholder
+       hashed from the entry id (sigil palette, mirrored block field) —
+       a visible pattern, not fake art. Pixelation is lazy: a canvas is
+       only painted when it scrolls near the viewport. */
+    var SIGIL_PIX = ['#6366f1','#22d3ee','#f471b5','#22c55e','#facc15','#8b8dff'];
+    function thumbHTML(e){
+      var src = cardImg(e);
+      return '<canvas class="gl-thumb" width="12" height="12" data-glid="' + e.id + '"' + (src ? ' data-src="' + src + '"' : '') + ' aria-hidden="true"></canvas>';
+    }
+    function pixSeed(str){ var h = 2166136261; for(var i=0;i<str.length;i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+    function pixRand(seed){ var t = seed >>> 0; return function(){ t = (t + 0x6D2B79F5) >>> 0; var r = Math.imul(t ^ (t >>> 15), 1 | t); r ^= r + Math.imul(r ^ (r >>> 7), 61 | r); return ((r ^ (r >>> 14)) >>> 0) / 4294967296; }; }
+    function paintPlaceholder(cv, id){
+      var ctx = cv.getContext('2d'); if(!ctx) return;
+      var rnd = pixRand(pixSeed(id || ''));
+      var c1 = SIGIL_PIX[Math.floor(rnd() * SIGIL_PIX.length)];
+      var c2 = SIGIL_PIX[Math.floor(rnd() * SIGIL_PIX.length)];
+      ctx.fillStyle = '#0a0616'; ctx.fillRect(0,0,12,12);
+      for(var y=0;y<6;y++){ for(var x=0;x<6;x++){
+        var r = rnd(); if(r < 0.42) continue;
+        ctx.fillStyle = r < 0.78 ? c1 : c2;
+        ctx.fillRect(x*2, y*2, 2, 2);
+        ctx.fillRect(10 - x*2, y*2, 2, 2);
+      } }
+    }
+    function pixelate(cv){
+      if(cv.getAttribute('data-done')) return;
+      cv.setAttribute('data-done', '1');
+      var src = cv.getAttribute('data-src'), id = cv.getAttribute('data-glid');
+      if(!src){ paintPlaceholder(cv, id); return; }
+      var img = new Image();
+      img.onload = function(){
+        var ctx = cv.getContext('2d'); if(!ctx) return;
+        var s = Math.max(12 / img.width, 12 / img.height), dw = img.width * s, dh = img.height * s;
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(img, (12 - dw) / 2, (12 - dh) / 2, dw, dh);
+      };
+      img.onerror = function(){ paintPlaceholder(cv, id); };
+      img.src = src;
+    }
+    var thumbObserver = ('IntersectionObserver' in window) ? new IntersectionObserver(function(list){
+      list.forEach(function(en){ if(en.isIntersecting){ thumbObserver.unobserve(en.target); pixelate(en.target); } });
+    }, { rootMargin: '120px' }) : null;
+    function paintThumbs(){
+      var list = root.querySelectorAll('canvas.gl-thumb');
+      for(var i=0;i<list.length;i++){ if(thumbObserver) thumbObserver.observe(list[i]); else pixelate(list[i]); }
+    }
+    function renderIndex(filter){
+      var f = (filter||'').toLowerCase(), html = '', ci = 0;
+      sections.forEach(function(s){
+        var items = s.ids.map(function(id){ return byId[id]; }).filter(Boolean)
+          .filter(function(e){ return !f || e.title.toLowerCase().indexOf(f) > -1; });
+        if(!items.length) return;
+        html += '<div class="card" style="animation-delay:' + (ci++ * 45) + 'ms"><h2 class="gl-sec">' + esc(s.name) + '</h2>';
+        var prim = primFor(s.name);
+        if(prim){
+          var inGrid = {};
+          html += '<div class="gl-grid">';
+          prim.forEach(function(id){
+            var e = byId[id]; if(!e) return;
+            if(f && e.title.toLowerCase().indexOf(f) === -1) return;
+            inGrid[id] = 1;
+            var img = cardImg(e);
+            html += '<a class="gl-pcard" style="animation-delay:' + (ci++ * 45) + 'ms" href="#/e/' + e.id + '">'
+              + (img ? '<img loading="lazy" src="' + img + '" alt="' + esc(e.title) + '">' : '')
+              + '<span class="gl-pname">' + esc(e.title) + '</span>'
+              + (e.classified ? '<span class="nv-state-stamp">CLASSIFIED</span><span class="nv-redacted">' + esc(e.kicker || e.title) + '</span>' : '')
+              + '</a>';
+          });
+          html += '</div>';
+          var rest = items.filter(function(e){ return !inGrid[e.id]; });
+          if(rest.length){
+            html += '<p class="gl-kicker gl-more">More in this section</p><ul class="gl-entries">';
+            rest.forEach(function(e){ html += '<li><a href="#/e/' + e.id + '">' + thumbHTML(e) + esc(e.title) + '</a>' + (e.classified ? ' <span class="nv-state-stamp">CLASSIFIED</span>' : '') + '</li>'; });
+            html += '</ul>';
+          }
+        } else {
+          html += '<ul class="gl-entries">';
+          items.forEach(function(e){ html += '<li><a href="#/e/' + e.id + '">' + thumbHTML(e) + esc(e.title) + '</a>' + (e.classified ? ' <span class="nv-state-stamp">CLASSIFIED</span>' : '') + '</li>'; });
+          html += '</ul>';
+        }
+        html += '</div>';
+      });
+      root.innerHTML = html;
+      indexInRoot = true;
+      paintThumbs();
+      if(emptyState) emptyState.hidden = !!html;
+      glLoaded();
+    }
+    function neighbors(id){
+      var flat = []; sections.forEach(function(s){ s.ids.forEach(function(x){ if(byId[x]) flat.push(x); }); });
+      var i = flat.indexOf(id);
+      return { prev: i>0 ? flat[i-1] : null, next: i>=0 && i<flat.length-1 ? flat[i+1] : null };
+    }
+    /* Entry popup (Nov 22, 2026): entries render INSIDE a glass overlay
+       over the index instead of replacing it. entryParts() returns the
+       same content the old full-page entry view built — section kicker,
+       the .gl-entry body (vestigial tabbar stripped), prev/next nav,
+       and the Classified / Not Found states unchanged — only the chrome
+       differs: the panel header carries the title and the back-icon
+       close button, and the panel body scrolls instead of the window.
+       No entry content changed. */
+    function navHTML(n){
+      return '<div class="gl-nav"><span>' + (n.prev ? '<a href="#/e/' + n.prev + '">&larr; ' + esc(byId[n.prev].title) + '</a>' : '') + '</span>'
+        + '<span>' + (n.next ? '<a href="#/e/' + n.next + '">' + esc(byId[n.next].title) + ' &rarr;</a>' : '') + '</span></div>';
+    }
+    function entryParts(id){
+      var e = byId[id];
+      if(!e){
+        return { title: 'Not Found', body: '<div class="nv-state"><p class="nv-state-title">Not Found</p><p class="nv-state-line">That entry isn\'t in the Grid Log.</p><p><a class="nv-btn" href="#/">Grid Log index</a></p></div>' };
+      }
+      if(e.classified){
+        return { title: e.title, body: '<p class="gl-kicker">' + esc(e.section || '') + '</p>'
+          + '<div class="nv-state"><p><span class="nv-state-stamp">CLASSIFIED</span></p><p class="nv-state-title">' + esc(e.title) + '</p><p class="nv-state-line">This entry is classified.</p></div>'
+          + navHTML(neighbors(id)) };
+      }
+      var html = e.html.replace(/<div class="tabbar">[\s\S]*?<\/div>/, '');
+      return { title: e.title, body: '<p class="gl-kicker">' + esc(e.section || '') + '</p>'
+        + '<div class="gl-entry">' + html + '</div>' + navHTML(neighbors(id)) };
+    }
+    var backdrop = document.getElementById('glPopBackdrop');
+    var panel = document.getElementById('glPopPanel');
+    var popTitle = document.getElementById('glPopTitle');
+    var popBody = document.getElementById('glPopBody');
+    var popClose = document.getElementById('glPopClose');
+    var popupOpen = false, popupId = null, indexInRoot = false, lastOpener = null, savedScroll = 0;
+    function showPopup(id){
+      var parts = entryParts(id);
+      if(!popupOpen) savedScroll = window.scrollY;
+      popupOpen = true; popupId = id;
+      popTitle.textContent = parts.title;
+      panel.setAttribute('aria-label', parts.title);
+      popBody.innerHTML = parts.body;
+      popBody.scrollTop = 0;
+      if(backdrop.hidden){
+        backdrop.hidden = false;
+        document.body.style.overflow = 'hidden';
+      }
+      if(!panel.contains(document.activeElement)) popTitle.focus();
+      if(window.NVAnnounce) NVAnnounce(parts.title);
+      if(emptyState) emptyState.hidden = true;
+      glLoaded();
+    }
+    function hidePopup(){
+      if(!popupOpen) return;
+      var id = popupId;
+      popupOpen = false; popupId = null;
+      backdrop.hidden = true;
+      document.body.style.overflow = '';
+      /* The index re-renders on the close route (same as before this
+         pass), so the opener node may have been replaced — fall back to
+         the fresh link for the same entry. Scroll returns to the exact
+         offset saved when the popup opened. */
+      var target = (lastOpener && document.contains(lastOpener)) ? lastOpener
+        : (id ? root.querySelector('a[href="#/e/' + id + '"]') : null);
+      if(target) target.focus();
+      window.scrollTo(0, savedScroll);
+    }
+    function requestClose(){
+      if(/^#\/e\//.test(location.hash || '')) location.hash = '#/';
+      else hidePopup();
+    }
+    popClose.addEventListener('click', requestClose);
+    backdrop.addEventListener('click', function(e){ if(e.target === backdrop) requestClose(); });
+    document.addEventListener('click', function(e){
+      var t = e.target;
+      var a = (t && t.closest) ? t.closest('a[href^="#/e/"]') : null;
+      if(a && root.contains(a)) lastOpener = a;
+    });
+    /* Escape closes the popup — and ONLY the popup. This listener runs
+       in the CAPTURE phase and stops the event while the popup is open,
+       so the shell's document-level Escape handler (bubble phase,
+       nv-shell.js) never receives it and cannot fire history
+       navigation. Backstop: the overlay's class contains "backdrop",
+       which the shell's own visible-layer check also yields to. While
+       the popup is closed this listener does nothing at all, so the
+       shell's Escape behavior is untouched. If the Commands palette is
+       open above the popup, the palette owns Escape first. */
+    document.addEventListener('keydown', function(e){
+      if(e.key !== 'Escape' || !popupOpen) return;
+      var ov = document.querySelector('.palette-overlay');
+      if(ov && ov.classList.contains('open')) return;
+      e.stopPropagation();
+      e.preventDefault();
+      requestClose();
+    }, true);
+    function route(){
+      var h = location.hash || '#/';
+      var m = h.match(/^#\/e\/(.+)$/);
+      if(m){
+        if(!indexInRoot) renderIndex(search.value);
+        showPopup(decodeURIComponent(m[1]));
+      } else {
+        renderIndex(search.value);
+        hidePopup();
+      }
+    }
+    window.addEventListener('hashchange', route);
+    search.addEventListener('input', function(){ if((location.hash||'#/') === '#/') renderIndex(search.value); });
+    route();
+    /* Light 2D tier — runs ONLY as the fallback when the WebGPU module
+       (gl-bg.js) is unavailable or fails; the module calls __glFallback. */
+    var bgStarted = false;
+    window.__glFallback = function(){ if(!bgStarted){ bgStarted = true; startBg2d(); } };
+    setTimeout(function(){ if(!bgStarted && !(window.__glStarted && window.__glStarted())) window.__glFallback(); }, 8000);
+    function startBg2d(){
+    document.getElementById('gl-bg').classList.add('on');
+    var cv = document.getElementById('gl-bg'), ctx = cv.getContext('2d'), W, H, P = [], still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function size(){ W = cv.width = innerWidth; H = cv.height = innerHeight; }
+    size(); addEventListener('resize', size);
+    var accent = getComputedStyle(document.documentElement).getPropertyValue('--nv-accent').trim() || '#6366f1';
+    for(var i=0;i<70;i++) P.push({x:Math.random(), y:Math.random(), s:Math.random()*1.8+0.4, v:Math.random()*0.00035+0.00008});
+    function tick(){
+      ctx.clearRect(0,0,W,H); ctx.fillStyle = accent;
+      P.forEach(function(p){ p.y -= p.v; if(p.y < -0.02){ p.y = 1.02; p.x = Math.random(); }
+        ctx.globalAlpha = 0.35; ctx.fillRect(p.x*W, p.y*H, p.s, p.s); });
+      ctx.globalAlpha = 1;
+      if(!still && !document.hidden) requestAnimationFrame(tick);
+    }
+    tick();
+    document.addEventListener('visibilitychange', function(){ if(!document.hidden) tick(); });
+    }
+  })();
+  </script>
+  <script type="module" src="gl-bg.js"></script>
+  <script src="../auth.js"></script>
+  <script src="../nv-ticker.js"></script>
+  <script src="../nv-commands.js"></script>
+  <script src="../nv-shell.js"></script>
+  <script src="../nv-sprite.js"></script>
+</body>
+</html>
