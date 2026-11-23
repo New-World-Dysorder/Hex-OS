@@ -1,0 +1,7 @@
+# Copy to .dev.vars for local wrangler dev --local. Never commit .dev.vars.
+UPLOAD_KEY=local-test-key-not-for-production
+# Local suite defaults to r2. For drive/both tests, set STORAGE=both (or drive)
+# and point DRIVE_SCRIPT_URL at the mock: http://127.0.0.1:18790/
+STORAGE=r2
+# DRIVE_SCRIPT_URL=http://127.0.0.1:18790/
+# DRIVE_SHARED_SECRET=local-drive-shared-secret-not-for-production

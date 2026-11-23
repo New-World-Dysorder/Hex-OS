@@ -1,0 +1,24 @@
+{
+  "name": "nv-file-organizer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Drop box Worker for Prof. Indigo stills (R2 + Drive dual-save). Do not deploy without Jasmine's word.",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --local --port 8787",
+    "test:local": "bash scripts/run-local-tests.sh",
+    "typecheck": "tsc --noEmit",
+    "cf-typegen": "wrangler types",
+    "test:drive": "bash scripts/run-drive-tests.sh",
+    "test:both-partial": "bash scripts/run-both-partial.sh"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20251104.0",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.158.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "workerd@1.20261104.1": true
+  }
+}

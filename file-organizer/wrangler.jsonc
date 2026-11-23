@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "nv-file-organizer",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-08",
+  "workers_dev": true,
+  // No routes / custom domains — deploy only creates *.workers.dev until Jasmine OKs otherwise.
+  "vars": {
+    // Intended dual-save mode after Jasmine OKs a redeploy with Drive wired up.
+    // Live Worker is still STORAGE=r2 until she says switch (do not deploy from here without her word).
+    // Local tests override via .dev.vars (r2 by default for the existing suite).
+    "STORAGE": "both"
+  },
+  "r2_buckets": [
+    {
+      "binding": "STILLS",
+      "bucket_name": "nv-stills"
+    }
+  ]
+}

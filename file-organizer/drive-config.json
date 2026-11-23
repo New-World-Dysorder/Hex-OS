@@ -1,0 +1,13 @@
+{
+  "webAppSharedDrive": {
+    "displayName": "<NV/D//:> WebApp//Neon Vigil Oauth",
+    "shortName": "WebApp",
+    "rootId": "0APDocXd3NxWxUk9PVA"
+  },
+  "stillsFolder": {
+    "name": "Stills",
+    "id": "1vIxTpii9DSgq_kRc2ntYbomXFQs_Zrjh",
+    "url": "https://drive.google.com/drive/folders/1vIxTpii9DSgq_kRc2ntYbomXFQs_Zrjh"
+  },
+  "notes": "Folder ids are not secrets. SHARED_SECRET / UPLOAD_KEY live only under secrets/ (gitignored)."
+}
