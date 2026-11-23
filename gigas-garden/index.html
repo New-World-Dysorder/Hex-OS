@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en" data-nv-no-ticker>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>iKG://GigasGarden.Construct — Infinity6 Terminal</title>
+  <link rel="stylesheet" href="../nv-terminal-tokens.css">
+  <link rel="stylesheet" href="../nv-commands.css"> <link rel="stylesheet" href="../nv-symbiont-theme.css"> <script src="../nv-symbiont-theme.js"></script>
+  <style>
+    /* Shell-wrapped game page (audit fix, Nov 8, 2026): the Gigas Garden
+       game loads in a full-viewport frame INSIDE the app shell (header,
+       dock, Cmd+K) instead of navigating out to GitHub Pages.
+       The frame is deliberately unsandboxed so the game behaves exactly
+       as it does standalone; sandboxing is a later hardening call.
+       Phase 1 (Nov 13, 2026): NO ticker on the game — data-nv-no-ticker
+       on <html>, the nv-ticker.css link and nv-ticker.js script are
+       removed below, nv-shell.js refuses to reload the ticker module,
+       and nv-ticker.js itself refuses to render on this route. The
+       element is never created; there is no replacement strip. */
+    html, body { height: 100%; }
+    body.nv-shell-page { padding-top: 8px; } /* no ticker to clear on this page */
+    body { background:#050508; color:#f5f0ff; font-family:ui-monospace, Menlo, monospace; font-size:18px; margin:0; display:flex; flex-direction:column; }
+    .nv-shell-head { max-width:none; margin:0 12px 12px; }
+    .nv-frame-wrap { flex:1; min-height:0; margin:0 12px; }
+    .nv-frame-wrap iframe { width:100%; height:100%; border:1px solid var(--nv-accent); display:block; box-sizing:border-box; background:#050508; }
+    .nv-frame-fallback { text-align:center; font-size:14px; color:var(--nv-accent-soft); margin:10px 0 0; }
+    .nv-frame-fallback a { color:var(--nv-accent-soft); }
+  </style>
+  <script src="../config.js"></script>
+</head>
+<body class="nv-shell-page">
+  <header class="nv-shell-head">
+    <a class="nv-shell-head-title" href="/hub.html">Infinity6 Terminal</a>
+    <span class="nv-shell-head-page">iKG://GigasGarden.Construct</span>
+    <span class="nv-shell-head-hint" data-nv-commands>Press ⌘K for commands</span>
+  </header>
+  <div class="nv-frame-wrap">
+    <iframe src="https://xer0yootz.github.io/gigas-garden-game/gigas-garden/" title="iKG://GigasGarden.Construct" allowfullscreen></iframe>
+  </div>
+  <p class="nv-frame-fallback">If the game does not load in this frame, <a href="https://xer0yootz.github.io/gigas-garden-game/gigas-garden/" target="_blank" rel="noopener">open the Gigas Garden directly</a>.</p>
+  <script src="../auth.js"></script>
+  <!-- Phase 1 (Nov 13, 2026): nv-ticker.js intentionally NOT included — no ticker on the game. -->
+  <script src="../nv-commands.js"></script>
+  <script src="../nv-shell.js"></script>
+</body>
+</html>
