@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IA Symbiont — Neon Vigil</title>
+  
+  <link rel="stylesheet" href="../nv-terminal-tokens.css">
+  <link rel="stylesheet" href="../nv-ticker.css">
+  <link rel="stylesheet" href="../nv-commands.css">
+  <link rel="stylesheet" href="../nv-sprite.css">
+  <link rel="stylesheet" href="../nv-symbiont-theme.css">
+  <script src="../nv-symbiont-theme.js"></script>
+  <style>
+    /* IA Symbiont — its own page (Nov 9, 2026). The symbiont is the pet:
+       your IA companion, with the same fluid color-changing motion, but
+       in the shapes we defined (hexagon / sigil). */
+    body { background:#050508; color:#f5f0ff; font-family:ui-monospace, Menlo, monospace; font-size:18px; margin:0; }
+    main { position:relative; z-index:2; max-width:720px; margin:0 auto; padding:0 16px 16px; }
+    .card { border:1px solid var(--nv-accent); border-radius:16px; background-color:rgba(15,9,27,.85); background-image:var(--nv-sheen); padding:28px; }
+    h1 { margin:8px 0; }
+    h2 { color:var(--nv-accent-soft); margin:32px 0 8px; }
+    a { color:var(--nv-accent-soft); }
+    .note { color:var(--nv-accent-soft); }
+    .back { margin-top:28px; }
+    .back a { color:var(--nv-accent-soft); }
+
+    /* IA picker: four hexagons, fluid color-changing motion.
+       (Fourth base — Warden green — added Nov 13, 2026, Phase 2.
+       The player's green hexagon is plain, like the others: no
+       strike. The struck hexagon is Warden the character's own
+       sigil only, and it is not used here.) */
+    .ia-grid { display:flex; flex-wrap:wrap; gap:16px; margin:20px 0 8px; }
+    .ia-pick {
+      display:flex; flex-direction:column; align-items:center; gap:8px;
+      background:transparent; border:1px solid var(--nv-accent); border-radius:16px;
+      padding:18px 20px 14px; cursor:pointer; min-width:130px;
+      font-family:inherit; color:#f5f0ff;
+    }
+    .ia-pick:hover { border-color:var(--nv-accent-soft); }
+    .ia-pick[aria-pressed="true"] {
+      border-color:var(--nv-accent);
+      box-shadow:0 0 0 1px #22d3ee, 0 0 22px rgba(34,211,238,.28);
+    }
+    .ia-pick .ia-hex { width:110px; height:110px; display:block; }
+    .ia-pick .ia-name { font-size:20px; letter-spacing:.14em; text-transform:uppercase; }
+    .ia-pick .ia-sub { font-size:15px; color:var(--nv-accent-soft); }
+    /* Skill readout for the picked base (Phase 2, Nov 13, 2026):
+       the four number skills (Power / Grid Scan Radius / Speed
+       Boost / Detectability, 24 points across the four) plus
+       Defense, a standalone fifth stat outside the 24 (Nov 20,
+       2026 lock), plus the Default mode stamp. Numbers and modes
+       are the locked set from
+       symbiont-skill-balance-and-pet-movement-2026-11-13.md. */
+    .skill-readout { margin:16px 0 8px; border:1px solid var(--nv-accent); border-radius:16px; padding:18px 20px; }
+    .skill-readout:empty { display:none; }
+    .skill-title { font-size:20px; letter-spacing:.14em; text-transform:uppercase; margin:0 0 10px; }
+    .skill-row { display:flex; align-items:center; gap:10px; margin:6px 0; }
+    .skill-name { flex:0 0 150px; }
+    .skill-bar { flex:1; height:10px; border:1px solid var(--nv-accent); border-radius:999px; overflow:hidden; }
+    .skill-fill { display:block; height:100%; background:var(--nv-accent); }
+    .skill-num { flex:0 0 24px; text-align:right; }
+    .skill-mode { margin:12px 0 4px; }
+    .skill-mode .mode-stamp { letter-spacing:.14em; text-transform:uppercase; color:var(--nv-accent-soft); }
+    .skill-det { margin:4px 0 0; color:var(--nv-accent-soft); font-size:15px; }
+    @keyframes nv-ia-flow {
+      0% { stop-color: var(--ia-a); }
+      50% { stop-color: var(--ia-b); }
+      100% { stop-color: var(--ia-a); }
+    }
+    @keyframes nv-ia-flow-b {
+      0% { stop-color: var(--ia-b); }
+      50% { stop-color: var(--ia-c); }
+      100% { stop-color: var(--ia-b); }
+    }
+    @keyframes nv-ia-spin {
+      to { transform: rotate(360deg); }
+    }
+    .ia-hex .ia-grad-a { animation: nv-ia-flow 4s ease-in-out infinite; }
+    .ia-hex .ia-grad-b { animation: nv-ia-flow-b 4s ease-in-out infinite; }
+    .ia-hex .ia-ring { transform-origin:50px 50px; animation: nv-ia-spin 14s linear infinite; }
+    .ia-pick[aria-pressed="true"] .ia-hex .ia-grad-a,
+    .ia-pick[aria-pressed="true"] .ia-hex .ia-grad-b { animation-duration: 2.2s; }
+    @media (prefers-reduced-motion: reduce) {
+      .ia-hex .ia-grad-a, .ia-hex .ia-grad-b, .ia-hex .ia-ring { animation:none; }
+    }
+  </style>
+  <script src="../config.js"></script>
+</head>
+<body class="nv-shell-page">
+  <header class="nv-shell-head">
+    <a class="nv-shell-head-title" href="/hub.html">Infinity6 Terminal</a>
+    <span class="nv-shell-head-page">IA Symbiont</span>
+    <span class="nv-shell-head-hint" data-nv-commands>Press ⌘K for commands</span>
+  </header>
+  <main>
+    <div class="card">
+      <h1>IA Symbiont</h1>
+      <p class="note">Your IA is your companion. In the Golden Era, everyone had one, like a cell phone. Pick the one that feels like yours. It will roam the pages with you: tap it to pet it, fling it to throw it.</p>
+
+      <h2>Choose your IA</h2>
+      <div class="ia-grid" role="group" aria-label="IA Symbiont">
+        <button type="button" class="ia-pick" data-ia="hexa" aria-pressed="false" style="--ia-a:#22d3ee; --ia-b:#00e5ff; --ia-c:#67e8f9;">
+          <svg class="ia-hex" viewBox="0 0 100 100" aria-hidden="true">
+            <defs>
+              <linearGradient id="iaGradHexa" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" class="ia-grad-a" stop-color="#22d3ee" />
+                <stop offset="1" class="ia-grad-b" stop-color="#00e5ff" />
+              </linearGradient>
+            </defs>
+            <polygon points="50,3 93,27 93,73 50,97 7,73 7,27" fill="url(#iaGradHexa)" fill-opacity="0.35" stroke="#22d3ee" stroke-width="3" />
+            <g class="ia-ring"><polygon points="50,22 76,37 76,63 50,78 24,63 24,37" fill="none" stroke="#67e8f9" stroke-width="2" /></g>
+          </svg>
+          <span class="ia-name">Hexa</span>
+          <span class="ia-sub">cyan</span>
+        </button>
+        <button type="button" class="ia-pick" data-ia="cyphr" aria-pressed="false" style="--ia-a:#6366f1; --ia-b:#7c3aed; --ia-c:#a78bfa;">
+          <svg class="ia-hex" viewBox="0 0 100 100" aria-hidden="true">
+            <defs>
+              <linearGradient id="iaGradCyphr" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" class="ia-grad-a" stop-color="#6366f1" />
+                <stop offset="1" class="ia-grad-b" stop-color="#7c3aed" />
+              </linearGradient>
+            </defs>
+            <polygon points="50,3 93,27 93,73 50,97 7,73 7,27" fill="url(#iaGradCyphr)" fill-opacity="0.35" stroke="#7c3aed" stroke-width="3" />
+            <g class="ia-ring"><polygon points="50,22 76,37 76,63 50,78 24,63 24,37" fill="none" stroke="#a78bfa" stroke-width="2" /></g>
+          </svg>
+          <span class="ia-name">Cyphr</span>
+          <span class="ia-sub">indigo</span>
+        </button>
+        <button type="button" class="ia-pick" data-ia="helix" aria-pressed="false" style="--ia-a:#e7548a; --ia-b:#c2185b; --ia-c:#f0a6c6;">
+          <svg class="ia-hex" viewBox="0 0 100 100" aria-hidden="true">
+            <defs>
+              <linearGradient id="iaGradHelix" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" class="ia-grad-a" stop-color="#e7548a" />
+                <stop offset="1" class="ia-grad-b" stop-color="#c2185b" />
+              </linearGradient>
+            </defs>
+            <polygon points="50,3 93,27 93,73 50,97 7,73 7,27" fill="url(#iaGradHelix)" fill-opacity="0.35" stroke="#e7548a" stroke-width="3" />
+            <g class="ia-ring"><polygon points="50,22 76,37 76,63 50,78 24,63 24,37" fill="none" stroke="#f0a6c6" stroke-width="2" /></g>
+          </svg>
+          <span class="ia-name">Helix</span>
+          <span class="ia-sub">pink</span>
+        </button>
+        <button type="button" class="ia-pick" data-ia="warden" aria-pressed="false" style="--ia-a:#a3e635; --ia-b:#65a30d; --ia-c:#d9f99d;">
+          <svg class="ia-hex" viewBox="0 0 100 100" aria-hidden="true">
+            <defs>
+              <linearGradient id="iaGradWarden" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" class="ia-grad-a" stop-color="#a3e635" />
+                <stop offset="1" class="ia-grad-b" stop-color="#65a30d" />
+              </linearGradient>
+            </defs>
+            <polygon points="50,3 93,27 93,73 50,97 7,73 7,27" fill="url(#iaGradWarden)" fill-opacity="0.35" stroke="#84cc16" stroke-width="3" />
+            <g class="ia-ring"><polygon points="50,22 76,37 76,63 50,78 24,63 24,37" fill="none" stroke="#d9f99d" stroke-width="2" /></g>
+          </svg>
+          <span class="ia-name">Warden</span>
+          <span class="ia-sub">green</span>
+        </button>
+      </div>
+      <p class="note" id="iaPicked" aria-live="polite"></p>
+      <div class="skill-readout" id="skillReadout"></div>
+      <p class="note">A voice preview is coming — for now the pick plays a chime.</p>
+
+      <h2>Your Symbiont follows you everywhere...</h2>
+      <p class="note">Once you pick an IA, it shows up on every page of the terminal (except the game) and roams with you. You can also pick it from the <a href="/settings/avatar-editor/">Avatar Editor</a>, where it sits as a guide while you build your avatar.</p>
+
+      <p class="back"><a href="/hub.html">Back to hub</a></p>
+    </div>
+  </main>
+  <script src="../nv-ticker.js"></script>
+  <script src="../auth.js"></script>
+  <script src="../nv-commands.js"></script>
+  <script src="../nv-sprite.js"></script>
+  <script src="../nv-shell.js"></script>
+  <script>
+  /* IA Symbiont picker — this page is the picker's home.
+     Tap one to choose it: saves to 'nv_symbiont_base' (same key Settings
+     and the Avatar Editor use) and plays a soft chime. */
+  (function () {
+    var picks = Array.prototype.slice.call(document.querySelectorAll('.ia-pick'));
+    if (!picks.length) return;
+    var pickedEl = document.getElementById('iaPicked');
+    var saved = '';
+    try { saved = localStorage.getItem('nv_symbiont_base') || ''; } catch (e) {}
+    /* Locked skill set (Nov 13, 2026): the four number skills
+       total 24 for every base; Mode is a word, not a number.
+       Detectability is literal — high = easy to spot.
+       Defense is a standalone fifth stat (Nov 20, 2026 lock),
+       NOT part of the 24: Hexa 7, Cyphr 3, Helix 5, Warden 9. */
+    var SKILLS = {
+      hexa:   { name: 'Hexa',   color: 'cyan',   power: 5, scan: 9, speed: 6, det: 4, def: 7, mode: 'FAST THINKING' },
+      cyphr:  { name: 'Cyphr',  color: 'indigo', power: 6, scan: 8, speed: 7, det: 3, def: 3, mode: 'DEEP LEARNING' },
+      helix:  { name: 'Helix',  color: 'pink',   power: 5, scan: 5, speed: 9, det: 5, def: 5, mode: 'FAST' },
+      warden: { name: 'Warden', color: 'green',  power: 7, scan: 5, speed: 4, det: 8, def: 9, mode: 'DEEP RESEARCH' }
+    };
+    var readoutEl = document.getElementById('skillReadout');
+    function skillRow(label, v) {
+      return '<div class="skill-row"><span class="skill-name">' + label + '</span>' +
+        '<span class="skill-bar"><span class="skill-fill" style="width:' + (v * 10) + '%"></span></span>' +
+        '<span class="skill-num">' + v + '</span></div>';
+    }
+    function renderReadout(base) {
+      if (!readoutEl) return;
+      var s = SKILLS[base];
+      if (!s) { readoutEl.innerHTML = ''; return; }
+      readoutEl.innerHTML =
+        '<p class="skill-title">' + s.name + ' — ' + s.color + '</p>' +
+        skillRow('Power', s.power) +
+        skillRow('Grid Scan Radius', s.scan) +
+        skillRow('Speed Boost', s.speed) +
+        skillRow('Detectability', s.det) +
+        skillRow('Defense', s.def) +
+        '<p class="skill-mode">Default mode: <span class="mode-stamp">' + s.mode + '</span></p>' +
+        '<p class="skill-det">Detectability: high = easy to spot on radar/GPS, low = stealthy.</p>';
+    }
+    function mark(base) {
+      picks.forEach(function (b) {
+        b.setAttribute('aria-pressed', b.getAttribute('data-ia') === base ? 'true' : 'false');
+      });
+      if (pickedEl) {
+        var names = { hexa: 'Hexa', cyphr: 'Cyphr', helix: 'Helix', warden: 'Warden' };
+        pickedEl.textContent = base && names[base] ? 'Your IA is ' + names[base] + '.' : '';
+      }
+      renderReadout(base);
+    }
+    var audioCtx = null;
+    function chime() { if (window.NVSymbiontChime) return window.NVSymbiontChime();
+      try {
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        if (!audioCtx) audioCtx = new AC();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        var t = audioCtx.currentTime;
+        [[660, 0], [880, 0.09]].forEach(function (n) {
+          var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+          o.type = 'sine'; o.frequency.value = n[0];
+          g.gain.setValueAtTime(0.0001, t + n[1]);
+          g.gain.exponentialRampToValueAtTime(0.12, t + n[1] + 0.02);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + n[1] + 0.35);
+          o.connect(g); g.connect(audioCtx.destination);
+          o.start(t + n[1]); o.stop(t + n[1] + 0.4);
+        });
+      } catch (e) {}
+    }
+    picks.forEach(function (b) {
+      b.addEventListener('click', function () {
+        var base = b.getAttribute('data-ia');
+        mark(base);
+        try { localStorage.setItem('nv_symbiont_base', base); } catch (e) {}
+        if (window.NVToast) NVToast.show('Saved');
+        /* Recolor the whole system to the pick right now. */
+        try { if (window.NVSymbiontTheme) window.NVSymbiontTheme.apply(); } catch (e2) {}
+        chime();
+      });
+    });
+    mark(saved);
+  })();
+  </script>
+</body>
+</html>
