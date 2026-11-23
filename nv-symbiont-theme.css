@@ -1,0 +1,281 @@
+/* nv-symbiont-theme.css — the IA Symbiont recolors the whole system.
+   RULE (Nov 9, 2026, User's standing rule): choosing the IA Symbiont
+   changes the color of the IA on all fronts AND the color of the
+   system — the container, radio, and other such things become pink
+   if you choose Helix, cyan if you choose Hexa, indigo if you choose
+   Cyphr, green if you choose Warden (added Nov 13, 2026, Phase 2).
+   The pick is stored in localStorage as nv_symbiont_base
+   ('hexa' / 'cyphr' / 'helix' / 'warden'); nv-symbiont-theme.js sets
+   data-symbiont on the root element, and this file recolors the
+   system accent to match. Cyphr (indigo) is the current default
+   look, so it keeps the existing purple. */
+
+/* Per-symbiont panel tints and readable text on them. Hexa's panel
+   stays light cyan, so its text stays dark #05373f. Helix's panel
+   (Nov 10) is dark plum #2a0a1e, so its text is pale pink #ffe9f3,
+   near-white and readable on the dark panel. Cyphr's panel is dark
+   indigo, so its text stays near-white #f5f0ff. --nv-accent-deep is the
+   readable heading/link shade of the accent on the panel;
+   --nv-on-accent is the text on a solid accent button.
+   Hex OS port, Nov 22, 2026: the sigil tokens are the locked set —
+   Hexa cyan #22d3ee, Cyphr indigo #6366f1 (indigo leads; the old
+   standalone violet #7c3aed is retired as an accent and may only trail
+   at gradient ends), Helix pink #f471b5, Warden green #4ade80.
+   Panels are glass: the tint below is the fill color, and the shared
+   --nv-sheen gradient rides on top (see the panel rules below). */
+:root {
+  --nv-accent: #6366f1;
+  --nv-accent-bright: #818cf8;
+  --nv-accent-soft: #a5b4fc;
+  --nv-accent-deep: #a5b4fc;
+  --nv-on-accent: #ffffff;
+  --nv-panel: #1a1c40;
+  --nv-panel-text: #f5f0ff;
+  --nv-sheen: linear-gradient(180deg, rgba(255, 255, 255, .09), rgba(255, 255, 255, .02) 42%, rgba(255, 255, 255, 0) 68%);
+}
+[data-symbiont="hexa"] {
+  --nv-accent: #22d3ee;
+  --nv-accent-bright: #00e5ff;
+  --nv-accent-soft: #67e8f9;
+  --nv-accent-deep: #0e7490;
+  --nv-on-accent: #05373f;
+  --nv-panel: #c9f2f7;
+  --nv-panel-text: #05373f;
+}
+[data-symbiont="cyphr"] {
+  --nv-accent: #6366f1;
+  --nv-accent-bright: #818cf8;
+  --nv-accent-soft: #a5b4fc;
+  --nv-accent-deep: #a5b4fc;
+  --nv-on-accent: #ffffff;
+  --nv-panel: #1a1c40;
+  --nv-panel-text: #f5f0ff;
+}
+[data-symbiont="helix"] {
+  --nv-accent: #f471b5;
+  --nv-accent-bright: #f9a8d4;
+  --nv-accent-soft: #f9a8d4;
+  --nv-accent-deep: #ff8fb6;
+  --nv-on-accent: #ffffff;
+  --nv-panel: #2a0a1e;
+  --nv-panel-text: #ffe9f3;
+}
+/* Warden green (Phase 2, Nov 13, 2026): the player's own green base.
+   Dark green panel like Cyphr's and Helix's dark panels, pale green
+   text on it, a bright readable green for headings/links, and dark
+   green text on a solid green button. These are theme variables for
+   the player's base colour — Warden the character's own design (and
+   his struck-hexagon sigil) is not defined here and does not change. */
+[data-symbiont="warden"] {
+  --nv-accent: #22c55e;
+  --nv-accent-bright: #4ade80;
+  --nv-accent-soft: #86efac;
+  --nv-accent-deep: #4ade80;
+  --nv-on-accent: #052e16;
+  --nv-panel: #0c2b18;
+  --nv-panel-text: #eafff2;
+}
+
+/* Recolor the system accent wherever it appears: panel borders,
+   links, and buttons use the theme variables, so the whole system
+   follows the pick. Pages that still hardcode the purple get these
+   overrides (later stylesheets win). The !important flags are what
+   let this file recolor inline purple styles. */
+[data-symbiont] a { color: var(--nv-accent-deep) !important; }
+[data-symbiont] main, [data-symbiont] section, [data-symbiont] article { border-color: var(--nv-accent) !important; }
+[data-symbiont] button.selected { background: var(--nv-accent) !important; color: var(--nv-on-accent) !important; }
+[data-symbiont] .nv-term-prompt { color: var(--nv-accent-soft) !important; }
+
+/* Containers / panels: per-symbiont tint, readable text, accent border. */
+[data-symbiont] .card,
+[data-symbiont] .panel,
+[data-symbiont] .toc,
+[data-symbiont] .box,
+[data-symbiont] .tile,
+[data-symbiont] .entry,
+[data-symbiont] .nv-card,
+[data-symbiont] .nv-panel,
+[data-symbiont] .widget,
+[data-symbiont] .modal,
+[data-symbiont] dialog {
+  background-color: var(--nv-panel) !important;
+  color: var(--nv-panel-text) !important;
+  border-color: var(--nv-accent) !important;
+}
+
+/* Glass sheen over the tinted panels (Hex OS port, Nov 22, 2026):
+   panels read as glass, never flat matte — the fill tint above stays,
+   the sheen gradient rides on top of it. */
+[data-symbiont] .card,
+[data-symbiont] .panel,
+[data-symbiont] .toc,
+[data-symbiont] .box,
+[data-symbiont] .tile,
+[data-symbiont] .entry,
+[data-symbiont] .nv-card,
+[data-symbiont] .nv-panel,
+[data-symbiont] .widget,
+[data-symbiont] .modal,
+[data-symbiont] dialog,
+[data-symbiont] main,
+[data-symbiont] .commands-footer, [data-symbiont] .footer-cell,
+[data-symbiont] .nv-term, [data-symbiont] .nv-term-out,
+[data-symbiont] .nv-term-head, [data-symbiont] .nv-term-foot {
+  background-image: var(--nv-sheen);
+}
+
+/* Text inside a tinted panel must use the panel text color, even
+   when the page gave it a hardcoded purple inline style. Links,
+   headings and buttons inside panels get their own rules below. */
+[data-symbiont] .card p, [data-symbiont] .card li, [data-symbiont] .card span,
+[data-symbiont] .card div, [data-symbiont] .card small, [data-symbiont] .card label,
+[data-symbiont] .panel p, [data-symbiont] .panel li, [data-symbiont] .panel span,
+[data-symbiont] .panel div, [data-symbiont] .toc p, [data-symbiont] .toc li,
+[data-symbiont] .card .meta, [data-symbiont] .card .note,
+[data-symbiont] .panel .meta, [data-symbiont] .panel .note {
+  color: var(--nv-panel-text) !important;
+}
+
+/* Headings: accent on the dark page, the deeper readable shade
+   inside a tinted panel. */
+[data-symbiont] h1, [data-symbiont] h2, [data-symbiont] h3 {
+  color: var(--nv-accent) !important;
+}
+[data-symbiont] .card h1, [data-symbiont] .card h2, [data-symbiont] .card h3,
+[data-symbiont] .panel h1, [data-symbiont] .panel h2, [data-symbiont] .panel h3,
+[data-symbiont] .toc h1, [data-symbiont] .toc h2, [data-symbiont] .toc h3 {
+  color: var(--nv-accent-deep) !important;
+}
+
+/* Links inside panels use the deep shade so they stay readable
+   on a light tint. */
+[data-symbiont] .card a, [data-symbiont] .panel a, [data-symbiont] .toc a {
+  color: var(--nv-accent-deep) !important;
+}
+
+/* Buttons: accent border and accent text everywhere; solid accent
+   for primary / call-to-action / submit buttons, with readable
+   text on the solid accent. */
+[data-symbiont] button, [data-symbiont] .btn, [data-symbiont] [role="button"] {
+  border-color: var(--nv-accent) !important;
+  color: var(--nv-accent) !important;
+}
+[data-symbiont] button.primary, [data-symbiont] .btn-primary,
+[data-symbiont] .cta, [data-symbiont] button[type="submit"],
+[data-symbiont] input[type="submit"], [data-symbiont] .save {
+  background-color: var(--nv-accent) !important;
+  background: var(--nv-accent) !important;
+  color: var(--nv-on-accent) !important;
+  border-color: var(--nv-accent) !important;
+}
+[data-symbiont] button.primary *, [data-symbiont] .cta * {
+  color: var(--nv-on-accent) !important;
+}
+
+/* Form controls: accent borders and the radio/checkbox accent. */
+[data-symbiont] input, [data-symbiont] select, [data-symbiont] textarea {
+  border-color: var(--nv-accent) !important;
+}
+[data-symbiont] input[type="radio"], [data-symbiont] input[type="checkbox"] {
+  accent-color: var(--nv-accent) !important;
+}
+[data-symbiont] .card input, [data-symbiont] .card select,
+[data-symbiont] .card textarea, [data-symbiont] .panel input,
+[data-symbiont] .panel select, [data-symbiont] .panel textarea {
+  background-color: var(--nv-panel) !important;
+  color: var(--nv-panel-text) !important;
+}
+
+/* Shell: ticker, dock and palette follow the pick too. */
+[data-symbiont] .nv-ticker, [data-symbiont] .ticker, [data-symbiont] #nv-ticker,
+[data-symbiont] .nv-dock, [data-symbiont] .dock, [data-symbiont] #nv-dock,
+[data-symbiont] .nv-palette, [data-symbiont] .palette, [data-symbiont] #nv-palette,
+[data-symbiont] .nv-shell, [data-symbiont] header, [data-symbiont] nav {
+  border-color: var(--nv-accent) !important;
+}
+[data-symbiont] .nv-ticker, [data-symbiont] .ticker, [data-symbiont] #nv-ticker {
+  color: var(--nv-accent-soft) !important;
+}
+[data-symbiont] hr { border-color: var(--nv-accent) !important; }
+[data-symbiont] ::selection {
+  background: var(--nv-accent);
+  color: var(--nv-on-accent);
+}
+
+/* The chosen pick is marked with the accent, not with a fixed purple. */
+[data-symbiont] .ia-pick[aria-pressed="true"] {
+  border-color: var(--nv-accent) !important;
+  box-shadow: 0 0 0 2px var(--nv-accent) !important;
+}
+
+/* Main containers and hub panels: the whole page container gets the
+   per-symbiont panel tint too (not just .card panels), with readable
+   panel text throughout. Headings, links and buttons inside a tinted
+   main use the deep readable shade. */
+[data-symbiont] main {
+  background-color: var(--nv-panel) !important;
+  color: var(--nv-panel-text) !important;
+}
+[data-symbiont] main p, [data-symbiont] main li, [data-symbiont] main span,
+[data-symbiont] main div, [data-symbiont] main small, [data-symbiont] main label,
+[data-symbiont] main .meta, [data-symbiont] main .note {
+  color: var(--nv-panel-text) !important;
+}
+[data-symbiont] main h1, [data-symbiont] main h2, [data-symbiont] main h3 {
+  color: var(--nv-accent-deep) !important;
+}
+[data-symbiont] main a {
+  color: var(--nv-accent-deep) !important;
+}
+[data-symbiont] main button {
+  color: var(--nv-accent-deep) !important;
+}
+[data-symbiont] main input, [data-symbiont] main select,
+[data-symbiont] main textarea {
+  background-color: var(--nv-panel) !important;
+  color: var(--nv-panel-text) !important;
+}
+
+/* Hub panels and the terminal use the panel tint as well. */
+[data-symbiont] .commands-footer, [data-symbiont] .footer-cell,
+[data-symbiont] .nv-term, [data-symbiont] .nv-term-out,
+[data-symbiont] .nv-term-head, [data-symbiont] .nv-term-foot {
+  background-color: var(--nv-panel) !important;
+  color: var(--nv-panel-text) !important;
+  border-color: var(--nv-accent) !important;
+}
+[data-symbiont] .nv-term-line {
+  color: var(--nv-panel-text) !important;
+  border-color: var(--nv-accent) !important;
+}
+[data-symbiont] #nv-ripple-ring {
+  border-color: var(--nv-accent-soft) !important;
+}
+/* Footer text and icons: the shell footer sits on the light panel
+   tint, so its radio label, station selector, play button and the
+   Commands icon must read in the panel text too. The play triangle
+   follows currentColor; the Commands icon uses fixed #f5f0ff
+   strokes and fills, so those get the panel text as well. */
+[data-symbiont] .commands-footer *,
+[data-symbiont] .footer-cell * {
+  color: var(--nv-panel-text) !important;
+}
+[data-symbiont] .commands-footer select,
+[data-symbiont] .footer-cell select {
+  background-color: var(--nv-panel) !important;
+}
+[data-symbiont] .commands-icon-btn svg {
+  stroke: var(--nv-panel-text) !important;
+}
+[data-symbiont] .commands-icon-btn svg circle {
+  fill: var(--nv-panel-text) !important;
+}
+/* Strong and bold text inside a tinted panel (for example the
+   profile page's "IA Symbiont:" label) uses the readable panel
+   text instead of the soft accent. */
+[data-symbiont] main strong,
+[data-symbiont] main b,
+[data-symbiont] .card strong,
+[data-symbiont] .card b {
+  color: var(--nv-panel-text) !important;
+}

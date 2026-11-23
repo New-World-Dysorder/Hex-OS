@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="en" data-nv-shell="back-only">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Neon Vigil — Coming Soon</title>   
+  <link rel="stylesheet" href="./nv-terminal-tokens.css">
+  <link rel="stylesheet" href="./nv-symbiont-theme.css">
+  <link rel="stylesheet" href="./ui-moments.css">
+  <script src="./nv-symbiont-theme.js"></script>
+  <style>
+    body { background:#050508; color:#f5f0ff; font-family: ui-monospace, Menlo, monospace; font-size: 18px; margin:0; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:56px 12px 24px; box-sizing:border-box; overflow-x:hidden; }
+    .bg { position:fixed; inset:0; z-index:0; transform:scale(1.12); will-change:transform; transition:transform .35s ease-out; pointer-events:none; overflow:hidden; }
+    .tv-layer { position:absolute; inset:0; background-size:cover; background-position:center; opacity:0; transition:opacity .5s ease; }
+    #tvShips { background-image:url("ships-bridge.jpg"); }
+    #tvWater { background-image:url("ocean-water.gif"); }
+    .tv-layer.tv-on { opacity:1; }
+
+    /* Mouse ripple, just over the content: small expanding rings that follow
+       the pointer (the water ripple she likes from the test-signin-water
+       page). pointer-events:none so it never blocks clicks. z-index sits
+       above the content layers and below the command palette. */
+    #nvRippleLayer { position:fixed; inset:0; z-index:6; pointer-events:none; overflow:hidden; }
+    .nv-ripple-ring { position:absolute; width:12px; height:12px; margin:-6px 0 0 -6px; border:1px solid var(--nv-accent-soft); border-radius:50%; pointer-events:none; animation:nv-ripple-expand .9s ease-out forwards; }
+    @keyframes nv-ripple-expand { 0% { transform:scale(1); opacity:.8; } 100% { transform:scale(8); opacity:0; } }
+    .static-top { position:fixed; inset:0; z-index:2; pointer-events:none; opacity:.38; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.25' numOctaves='3'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)'/%3E%3C/svg%3E"); }
+    .static-burst { position:fixed; inset:0; z-index:2; pointer-events:none; opacity:0; background-color:rgba(255,255,255,.12); background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.25' numOctaves='3'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)'/%3E%3C/svg%3E"); }
+    .static-burst.burst-on { opacity:1; }
+    .scrim { position:fixed; inset:0; background:linear-gradient(rgba(5,1,15,.35),rgba(5,1,15,.75)); z-index:1; }
+    .ticker { position:fixed; top:0; left:0; right:0; z-index:4; overflow:hidden; white-space:nowrap; padding:10px 12px; font-size:10px; letter-spacing:2px; background-color:rgba(5,5,8,.78); background-image:linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,0) 70%); border:1px solid var(--nv-accent); box-sizing:border-box; color:#f5f0ff; }
+    .hub-label { color:#ffffff; }
+    .await-track { display:inline-block; padding-left:0; }
+    .await-static { display:inline-block; animation:nv-colors 6s linear infinite; }
+    .cursor-blink { display:inline-block; animation:nv-blink 1.2s steps(2,start) infinite; color:#ffffff; }
+    .await-blink { display:inline-block; animation:nv-blink 1.2s steps(2,start) infinite, nv-colors 6s linear infinite; }
+    @keyframes nv-scroll { from{transform:translateX(0)} to{transform:translateX(-100%)} }
+    @keyframes nv-blink { 0%,49%{opacity:1} 50%,100%{opacity:0} }
+    @keyframes nv-colors { 0%{color:#00f0ff} 25%{color:#ff4fd8} 50%{color:#9d4edd} 75%{color:#f5f0ff} 100%{color:#00f0ff} }
+    main { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:2; width:100%; max-width:560px; max-height:calc(100vh - 120px); overflow-y:auto; margin:0; padding:24px; box-sizing:border-box; text-align:center; border:1px solid var(--nv-accent); border-radius:16px; background-color:rgba(15,9,27,.82); background-image:var(--nv-sheen); }
+    h1 { margin:0 0 8px; } p { color:var(--nv-accent-soft); }
+    button { background:#f5f0ff; color:#05010f; border:0; padding:12px 20px; border-radius:999px; font-weight:700; cursor:pointer; font-size:16px; transition:background .6s; box-shadow:inset 0 1px 0 rgba(255,255,255,.65), inset 0 -8px 14px rgba(5,5,8,.18), 0 0 12px rgba(99,102,241,.30); }
+    button:active { background:#000000; color:#f5f0ff; }
+    button:disabled { opacity:.5; cursor:wait; }
+    #status { margin-top:16px; min-height:1.2em; color:#fda4af; white-space:pre-wrap; }
+    a { color:var(--nv-accent-soft); }
+    .icon-btn svg { width:24px; height:24px; display:block; }
+    .icon-btn { padding:12px 14px; }
+    /* Coming-soon gate (Nov 7, User's, temporary): the notice sits beneath the
+       NWD logo, and the invisible .login-blocker covers the login buttons so
+       they stay visible but can't be clicked for now. To reopen sign-in,
+       delete the blocker div and the two .coming-soon lines. */
+    .coming-soon { margin:8px 0 0; font-size:30px; letter-spacing:3px; color:#f5f0ff; }
+    .coming-soon-sub { margin:0 0 8px; font-size:18px; letter-spacing:2px; color:var(--nv-accent-soft); }
+    .login-block-wrap { position:relative; display:inline-block; }
+    
+    .nv-sound-btn{position:fixed;right:16px;bottom:16px;z-index:3;width:44px;height:44px;padding:0;display:flex;align-items:center;justify-content:center;background-color:rgba(15,9,27,.88);background-image:var(--nv-sheen);color:#f5f0ff;border:1px solid var(--nv-accent);border-radius:999px;cursor:pointer}.nv-sound-btn svg{width:20px;height:20px;display:block}.nv-sound-btn:disabled{opacity:.5;cursor:wait}
+    body.cookie-locked .nv-sound-btn { pointer-events:none; }
+
+    model-viewer { --poster-color: transparent; }
+    /* NWD logo hop — same 1s up/down as Baby Pigek's locked hop-bob. */
+    @keyframes nv-logo-hop { 0%{transform:translateY(0)} 50%{transform:translateY(-18px)} 100%{transform:translateY(0)} }
+    model-viewer.nwd-logo-hop { animation:nv-logo-hop 1s ease-in-out; }
+    /* NWD logo spin-out — when a sign-in button is clicked the logo spins out of
+       the scene (two full turns, shrinking and fading) over 0.7s, while the
+       OAuth redirect is starting. It never delays sign-in. */
+    @keyframes nv-logo-spinout { 0%{transform:rotate(0deg) scale(1); opacity:1} 100%{transform:rotate(720deg) scale(.15); opacity:0} }
+    model-viewer.nwd-logo-spinout { animation:nv-logo-spinout .7s ease-in forwards; pointer-events:none; }
+.cookie-banner { position:fixed; left:12px; right:12px; bottom:12px; z-index:5; max-width:560px; margin:0 auto; padding:14px 16px; text-align:center; border:1px solid var(--nv-accent); border-radius:16px; background-color:rgba(15,9,27,.94); background-image:var(--nv-sheen); color:#f5f0ff; }
+    .cookie-banner .cookie-legal { margin:10px 0 0; font-size:15px; }
+    .cookie-banner .cookie-legal a { color:var(--nv-accent-soft); }
+    .cookie-banner p { margin:0 0 10px; color:#f5f0ff; }
+    #cookieBlocker { position:fixed; inset:0; z-index:4; background:transparent; }
+    body.cookie-locked main, body.cookie-locked .ticker { pointer-events:none; }
+    body.cookie-locked #cookieBlocker { display:block; }
+    body:not(.cookie-locked) #cookieBlocker { display:none; }
+    /* Email sign-in / sign-up (Nov 22, 2026): sits under the GitHub/Google
+       buttons inside the same glass panel — accent border + sheen inputs,
+       the page's pill buttons, a quieter outlined button for the link. */
+    .nv-email-form { margin:20px auto 0; max-width:340px; text-align:left; }
+    .nv-email-field { margin:0 0 12px; }
+    .nv-email-field label { display:block; margin:0 0 6px; font-size:14px; letter-spacing:1px; color:var(--nv-accent-soft); }
+    .nv-email-field input { width:100%; box-sizing:border-box; padding:11px 14px; border-radius:12px; border:1px solid var(--nv-accent); background-color:rgba(5,5,8,.55); background-image:var(--nv-sheen); color:#f5f0ff; font:inherit; font-size:16px; }
+    .nv-email-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:4px; }
+    .nv-email-actions button { font-size:15px; padding:10px 16px; }
+    .nv-email-quiet { background:transparent; color:var(--nv-accent-soft); border:1px solid var(--nv-accent); box-shadow:none; }
+    .nv-email-note { margin:12px 0 0; font-size:14px; text-align:center; }
+</style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./config.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
+</head>
+<body>
+  <div id="umBoot" class="um-boot" aria-hidden="true"><svg class="um-snake" width="52" height="52" viewBox="0 0 46 46"><rect x="5" y="5" width="36" height="36" rx="3"/></svg></div>
+  <div class="bg" aria-hidden="true"><div class="tv-layer tv-on" id="tvShips"></div><div class="tv-layer" id="tvWater"></div></div>
+  <div class="scrim" aria-hidden="true"></div>
+  <div class="static-top" aria-hidden="true"></div>
+  <div class="static-burst" id="staticBurst" aria-hidden="true"></div>
+  <div id="nvRippleLayer" aria-hidden="true"></div>
+  <div class="ticker"><span class="hub-label">Hub Status:</span> <span class="await-track"><span class="await-static">Awaiting Sync</span></span></div>
+  <main>
+    <div id="umSigilWait" class="um-sigil-wait" aria-hidden="true"><span></span><span></span><span></span></div>
+    <model-viewer id="nwdLogo" src="nwd-logo-test.glb" alt="New World Dysorder logo" camera-controls style="width:100%; height:209px; background:transparent;"></model-viewer>
+    <p class="coming-soon">Under Construction</p>
+    <p class="coming-soon-sub">Coming Soon</p>
+    <p>Sign in</p>
+    <!-- Coming-soon gate (Nov 7, User's): login buttons stay visible, the
+         invisible blocker below sits over them so they can't be clicked. -->
+    <div class="login-block-wrap">
+    <button id="githubBtn" class="icon-btn" data-um-ripple disabled aria-label="Sign in with GitHub" title="Sign in with GitHub"><svg aria-hidden="true" fill="#05010f" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></button>
+    <button id="googleBtn" class="icon-btn" data-um-ripple disabled style="margin-left:8px; background:#ffffff; border:1px solid #747775;" aria-label="Sign in with Google" title="Sign in with Google"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg></button>
+    
+    </div>
+    <!-- Email sign-in / sign-up (Nov 22, 2026, User's): any email, not just
+         GitHub or Google. Handlers: window.NVEmailAuth in auth.js; wiring is
+         in the same inline script that binds the OAuth buttons. Feedback
+         goes to the existing #status line below. -->
+    <form id="nvEmailForm" class="nv-email-form">
+      <div class="nv-email-field">
+        <label for="nvEmail">Email</label>
+        <input type="email" id="nvEmail" name="email" autocomplete="email" required>
+      </div>
+      <div class="nv-email-field">
+        <label for="nvPassword">Password</label>
+        <input type="password" id="nvPassword" name="password" autocomplete="current-password" required>
+      </div>
+      <div class="nv-email-actions">
+        <button type="submit" id="nvEmailSignInBtn">Sign in</button>
+        <button type="button" id="nvEmailSignUp">Create account</button>
+        <button type="button" id="nvEmailMagic" class="nv-email-quiet">Email me a sign-in link</button>
+      </div>
+      <p class="nv-email-note">New here? Create account makes your account with any email.</p>
+    </form>
+    <p id="status"></p>
+  </main>
+  <script src="./auth.js"></script>
+  <script src="./ui-moments.js"></script>
+  <script>
+    checkSessionAndRedirect('hub.html');
+    /* Spin the NWD logo out of the scene when a sign-in button is clicked.
+       Registered before the OAuth handlers so the spin starts first; it never
+       blocks or delays sign-in — the redirect starts right after, and the
+       0.7s animation plays while the page is leaving. */
+    (function () {
+      var logo = document.getElementById('nwdLogo');
+      function spinOut() {
+        if (!logo) return;
+        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        logo.classList.remove('nwd-logo-hop');
+        void logo.offsetWidth; /* restart the animation */
+        logo.classList.add('nwd-logo-spinout');
+      }
+      document.getElementById('githubBtn').addEventListener('click', spinOut);
+      document.getElementById('googleBtn').addEventListener('click', spinOut);
+    })();
+    document.getElementById('githubBtn').addEventListener('click', signInWithGitHub);
+    document.getElementById('googleBtn').addEventListener('click', signInWithGoogle);
+    /* Email auth wiring (Nov 22, 2026): form submit = sign in; Create
+       account and the sign-in-link button call the matching NVEmailAuth
+       handler from auth.js. The magic link uses the email field only. */
+    (function () {
+      var form = document.getElementById('nvEmailForm');
+      if (!form || !window.NVEmailAuth) return;
+      function emailVal() { var el = document.getElementById('nvEmail'); return el ? el.value : ''; }
+      function passVal() { var el = document.getElementById('nvPassword'); return el ? el.value : ''; }
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        window.NVEmailAuth.signIn(emailVal(), passVal());
+      });
+      document.getElementById('nvEmailSignUp').addEventListener('click', function () {
+        window.NVEmailAuth.signUp(emailVal(), passVal());
+      });
+      document.getElementById('nvEmailMagic').addEventListener('click', function () {
+        window.NVEmailAuth.magicLink(emailVal());
+      });
+    })();
+    /* Select sound (Mouse Click 1): plays once when a sign-in provider is
+       chosen — the choice navigates to GitHub/Google. No delay: the OAuth
+       redirect starts right after, and the click plays on the gesture. */
+    (function () {
+      var s = new Audio('sounds/neon-vigil-mouse-click-1.wav');
+      s.volume = 0.5;
+      function playSelect() { try { s.currentTime = 0; var p = s.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {} }
+      document.getElementById('githubBtn').addEventListener('click', playSelect);
+      document.getElementById('googleBtn').addEventListener('click', playSelect);
+    })();
+  </script>
+<audio id="nvSoundBed3" src="sounds/neon-vigil-sound-bed-3-loop.wav" loop preload="none"></audio>
+<button type="button" id="nvSoundBed3Btn" class="nv-sound-btn" disabled aria-label="Play Sound Bed 3" title="Play Sound Bed 3"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg></button>
+<script>
+(function () {
+  var a = document.getElementById('nvSoundBed3');
+  var b = document.getElementById('nvSoundBed3Btn');
+  if (!a || !b) return;
+  var playSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg>';
+  var stopSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12"/></svg>';
+  function sync() {
+    b.innerHTML = a.paused ? playSvg : stopSvg;
+    b.setAttribute('aria-label', a.paused ? 'Play Sound Bed 3' : 'Stop Sound Bed 3');
+    b.setAttribute('title', a.paused ? 'Play Sound Bed 3' : 'Stop Sound Bed 3');
+  }
+  function locked() { return document.body.classList.contains('cookie-locked'); }
+  b.addEventListener('click', function () {
+    if (locked()) return;
+    if (a.paused) { a.play().catch(function () {}); } else { a.pause(); }
+  });
+  a.addEventListener('play', sync);
+  a.addEventListener('pause', sync);
+  function onFirstTap(e) {
+    if (locked()) return;
+    if (b.contains(e.target)) return;
+    a.play().catch(function () {});
+    document.removeEventListener('pointerdown', onFirstTap);
+  }
+  document.addEventListener('pointerdown', onFirstTap);
+  sync();
+})();
+</script>
+  <div id="cookieBlocker" aria-hidden="true"></div>
+  <div class="cookie-banner" id="cookieBanner" role="dialog" aria-label="Cookie notice">
+    <p>This site uses cookies only to keep you signed in.</p>
+    <button type="button" id="cookieGotItBtn" class="icon-btn" aria-label="Got it" title="Got it"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/></svg></button>
+    <p class="cookie-legal"><a href="/terms">Terms</a> · <a href="/privacy">Privacy</a></p>
+  </div>
+  <script>
+    (function () {
+      var banner = document.getElementById('cookieBanner');
+      var btn = document.getElementById('cookieGotItBtn');
+      var githubBtn = document.getElementById('githubBtn');
+      var soundBtn = document.getElementById('nvSoundBed3Btn');
+      var googleBtn = document.getElementById('googleBtn');
+      if (!banner || !btn) return;
+      function unlock() {
+        document.body.classList.remove('cookie-locked');
+        if (githubBtn) githubBtn.disabled = false;
+        if (googleBtn) googleBtn.disabled = false;
+        if (soundBtn) soundBtn.disabled = false;
+      }
+      var dismissed = false;
+      try { dismissed = localStorage.getItem('nv-cookie-dismissed') === '1'; } catch (e) {}
+      if (dismissed) { banner.style.display = 'none'; unlock(); return; }
+      document.body.classList.add('cookie-locked');
+      if (githubBtn) githubBtn.disabled = true;
+      if (googleBtn) googleBtn.disabled = true;
+      if (soundBtn) soundBtn.disabled = true;
+      btn.addEventListener('click', function () {
+        try { localStorage.setItem('nv-cookie-dismissed', '1'); } catch (e) {}
+        banner.style.display = 'none';
+        unlock();
+      });
+    })();
+  </script>
+<script>
+/* iPhone-style background shift: gyro tilt on phone, mouse parallax on desktop.
+   The NWD logo drifts a little with the same motion (a few degrees of camera
+   orbit, lerped). Dragging the logo always wins: drift pauses while the user
+   drags and for 3s after, then re-centres on wherever they left it. */
+(function () {
+  var bg = document.querySelector('.bg');
+  if (!bg) return;
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  var tx = 0, ty = 0, cx = 0, cy = 0, raf = null;
+  var logo = document.getElementById('nwdLogo');
+  var logoBase = null; /* {theta, phi in radians, radius string} captured from the viewer */
+  var ltx = 0, lty = 0, lcx = 0, lcy = 0; /* logo drift targets/currents, degrees */
+  var userHoldUntil = 0;
+  function captureLogoBase() {
+    if (!logo || logoBase) return;
+    try {
+      if (!logo.loaded) return;
+      var o = logo.getCameraOrbit();
+      var r = o.radius;
+      logoBase = { theta: o.theta, phi: o.phi, radius: (typeof r === 'number') ? r.toFixed(3) + 'm' : String(r) };
+    } catch (e) {}
+  }
+  if (logo) {
+    logo.addEventListener('load', captureLogoBase);
+    logo.addEventListener('pointerdown', function () { userHoldUntil = Date.now() + 2500; });
+    logo.addEventListener('pointerup', function () {
+      userHoldUntil = Date.now() + 3000;
+      logoBase = null; /* re-capture on resume so drift centres on the new angle/zoom */
+    });
+  }
+  function applyLogoDrift() {
+    if (!logo) return;
+    captureLogoBase();
+    if (!logoBase) return;
+    if (Date.now() < userHoldUntil) return;
+    lcx += (ltx - lcx) * 0.08; lcy += (lty - lcy) * 0.08;
+    var thetaDeg = (logoBase.theta * 180 / Math.PI) + lcx;
+    var phiDeg = (logoBase.phi * 180 / Math.PI) + lcy;
+    try { logo.cameraOrbit = thetaDeg.toFixed(2) + 'deg ' + phiDeg.toFixed(2) + 'deg ' + logoBase.radius; } catch (e) {}
+  }
+  function apply() {
+    cx += (tx - cx) * 0.12; cy += (ty - cy) * 0.12;
+    bg.style.transform = 'translate3d(' + cx.toFixed(2) + 'px,' + cy.toFixed(2) + 'px,0) scale(1.12)';
+    applyLogoDrift();
+    if (Math.abs(tx - cx) > 0.05 || Math.abs(ty - cy) > 0.05 || Math.abs(ltx - lcx) > 0.05 || Math.abs(lty - lcy) > 0.05) { raf = requestAnimationFrame(apply); } else { raf = null; }
+  }
+  function kick() { if (!raf) raf = requestAnimationFrame(apply); }
+  window.addEventListener('pointermove', function (e) {
+    if (e.pointerType === 'touch') return;
+    var nx = (e.clientX / window.innerWidth - 0.5) * 2;
+    var ny = (e.clientY / window.innerHeight - 0.5) * 2;
+    tx = -nx * 16; ty = -ny * 12;
+    ltx = nx * 5; lty = -ny * 3; kick();
+  }, { passive: true });
+  function onTilt(e) {
+    if (e.gamma == null || e.beta == null) return;
+    var g = Math.max(-45, Math.min(45, e.gamma));
+    var b = Math.max(-30, Math.min(30, (e.beta || 0) - 45));
+    tx = -(g / 45) * 16; ty = -(b / 30) * 12;
+    ltx = (g / 45) * 5; lty = -(b / 30) * 3; kick();
+  }
+  var motionAsked = false;
+  function enableMotion() {
+    if (motionAsked) return; motionAsked = true;
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+      DeviceOrientationEvent.requestPermission().then(function (r) { if (r === 'granted') window.addEventListener('deviceorientation', onTilt); }).catch(function () {});
+    } else {
+      window.addEventListener('deviceorientation', onTilt);
+    }
+  }
+  document.addEventListener('pointerdown', enableMotion, { once: true });
+  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission !== 'function') {
+    window.addEventListener('deviceorientation', onTilt);
+  }
+})();
+</script>
+
+<script>
+  /* TV picture cycle — live on the main sign-in page, Nov 5 2026. Reverted to the pre-fade version per Jasmine: quick picture change (0.5s) with a sharp 1s static burst between pictures, but each picture holds longer — Ships Bridge (12s) -> burst (1s) -> water (12s) -> burst -> loop. Static sits over the background, under the sign-in box. */
+  (function () {
+    var channels = [
+      document.getElementById('tvShips'),
+      document.getElementById('tvWater')
+    ];
+    var burst = document.getElementById('staticBurst');
+    var topStatic = document.querySelector('.static-top');
+    var current = 0;
+    var HOLD_MS = 12000, BURST_MS = 1000;
+    setInterval(function () {
+      var sx = Math.floor(Math.random() * 240), sy = Math.floor(Math.random() * 240);
+      if (topStatic) topStatic.style.backgroundPosition = sx + 'px ' + sy + 'px';
+      if (burst) burst.style.backgroundPosition = Math.floor(Math.random() * 240) + 'px ' + Math.floor(Math.random() * 240) + 'px';
+    }, 90);
+    function show(i) {
+      channels.forEach(function (el, idx) { if (el) el.classList.toggle('tv-on', idx === i); });
+      current = i;
+    }
+    function next() {
+      if (burst) burst.classList.add('burst-on');
+      setTimeout(function () {
+        if (burst) burst.classList.remove('burst-on');
+        show((current + 1) % channels.length);
+        setTimeout(next, HOLD_MS);
+      }, BURST_MS);
+    }
+    show(0);
+    setTimeout(next, HOLD_MS);
+  })();
+</script>
+
+<script>
+  /* NWD logo hop — shake your phone up and down (devicemotion) and the logo does
+     one 1s up/down hop, same timing as Baby Pigek's locked hop-bob. Tap the logo
+     as a fallback (desktop / no motion permission). Silent — no sound attached. */
+  (function () {
+    var logo = document.getElementById('nwdLogo');
+    if (!logo) return;
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var hopping = false, lastHop = 0;
+    function hop() {
+      var now = Date.now();
+      if (hopping || now - lastHop < 1200) return; /* one shake = one hop */
+      hopping = true; lastHop = now;
+      logo.classList.remove('nwd-logo-hop');
+      void logo.offsetWidth; /* restart the animation */
+      logo.classList.add('nwd-logo-hop');
+      setTimeout(function () { logo.classList.remove('nwd-logo-hop'); hopping = false; }, 1000);
+    }
+    /* Tap fallback: a real tap (not a drag) on the logo hops it. */
+    var downX = 0, downY = 0, downT = 0;
+    logo.addEventListener('pointerdown', function (e) { downX = e.clientX; downY = e.clientY; downT = Date.now(); }, { passive: true });
+    logo.addEventListener('pointerup', function (e) {
+      var moved = Math.abs(e.clientX - downX) + Math.abs(e.clientY - downY);
+      if (moved < 8 && Date.now() - downT < 400) hop();
+    }, { passive: true });
+    /* Shake detection: sharp change in acceleration = shaking the phone up/down. */
+    var last = null, lastShake = 0;
+    function onMotion(e) {
+      var a = e.accelerationIncludingGravity;
+      if (!a || a.x == null) return;
+      if (last) {
+        var dx = a.x - last.x, dy = a.y - last.y, dz = a.z - last.z;
+        var delta = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        var now = Date.now();
+        if (delta > 18 && now - lastShake > 1200) { lastShake = now; hop(); }
+      }
+      last = { x: a.x, y: a.y, z: a.z };
+    }
+    function enableMotion() {
+      if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+        DeviceMotionEvent.requestPermission().then(function (r) { if (r === 'granted') window.addEventListener('devicemotion', onMotion); }).catch(function () {});
+      } else {
+        window.addEventListener('devicemotion', onMotion);
+      }
+    }
+    /* Reuse the existing first-tap motion-permission flow (cookie thumbs-up tap). */
+    document.addEventListener('pointerdown', enableMotion, { once: true });
+    if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission !== 'function') {
+      window.addEventListener('devicemotion', onMotion);
+    }
+  })();
+</script>
+
+<script>
+/* Mouse ripple just over the content: a small expanding ring trails the
+   pointer as it moves, and a tap spawns one too (touch). pointer-events:none,
+   so it never blocks hub links, radio, Options, or sign-in buttons. */
+(function () {
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  var layer = document.getElementById('nvRippleLayer');
+  if (!layer) return;
+  var lastSpawn = 0;
+  function spawn(x, y) {
+    var now = Date.now();
+    if (now - lastSpawn < 120) return; /* one ring per 120ms while moving */
+    lastSpawn = now;
+    var ring = document.createElement('div');
+    ring.className = 'nv-ripple-ring';
+    ring.style.left = x + 'px';
+    ring.style.top = y + 'px';
+    layer.appendChild(ring);
+    setTimeout(function () { if (ring.parentNode) ring.parentNode.removeChild(ring); }, 950);
+  }
+  var lastDragBuzz = 0;
+  function buzz(ms) {
+    /* Haptics: Android Chrome only — iOS Safari has no navigator.vibrate. */
+    if (!('vibrate' in navigator)) return;
+    try { navigator.vibrate(ms); } catch (e) {}
+  }
+  window.addEventListener('pointermove', function (e) {
+    if (e.pointerType === 'touch') {
+      /* Drag across the ripple (touch): longer, harder buzz, throttled so a
+         long drag buzzes in pulses instead of one endless vibration. */
+      spawn(e.clientX, e.clientY);
+      var now = Date.now();
+      if (now - lastDragBuzz >= 300) { lastDragBuzz = now; buzz(60); }
+      return;
+    }
+    spawn(e.clientX, e.clientY);
+  }, { passive: true });
+  window.addEventListener('pointerdown', function (e) {
+    if (e.pointerType === 'touch') { spawn(e.clientX, e.clientY); buzz(10); } /* tap: tiny buzz */
+  }, { passive: true });
+})();
+</script>
+<script src="./nv-shell.js"></script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+/* nv-ticker.css — Shared ticker for the Neon Vigil web app.
+   Infinity 6 Terminal / Hex OS. One module; the hub ticker, extracted whole
+   so every page can share it. Full width across the entire top, 10px
+   (Nov 8, 2026, Jasmine's order — really small, supersedes the 14px from
+   the Nov 8 hub cleanup), thin accent border, no glow. Sits still until the
+   content is real, then scrolls a seamless 30s loop. The font is set here
+   (not inherited) so the ticker reads in the shared system monospace stack
+   even on pages whose own font is different.
+   Phase 1 (Nov 13, 2026): the bar is 16px high in total (Lofi size table) —
+   the 10px text stays; the old 10px top/bottom padding is gone.
+   Routes with data-nv-no-ticker never create this element at all
+   (see nv-ticker.js) — removal, not hiding.
+   Hex OS port, Nov 22, 2026: glass background (translucent + sheen),
+   same as the rest of the shell. */
+.ticker { position:fixed; top:0; left:0; right:0; z-index:4; overflow:hidden; white-space:nowrap; height:16px; padding:0; line-height:16px; font-family:ui-monospace, Menlo, monospace; font-size:10px; letter-spacing:2px; background-color:rgba(5,5,8,.78); background-image:linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,0) 70%); border:1px solid var(--nv-accent, #8a8a99); box-sizing:border-box; color:#f5f0ff; }
+.ticker-track { display:inline-flex; white-space:nowrap; will-change:transform; }
+.ticker-track span { padding-right:3em; }
+.ticker.scrolling .ticker-track { animation:nv-ticker-scroll 30s linear infinite; }
+@keyframes nv-ticker-scroll { from { transform:translateX(0); } to { transform:translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) { .ticker.scrolling .ticker-track { animation:none; } }

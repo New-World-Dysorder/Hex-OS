@@ -1,0 +1,829 @@
+/* nv-terminal-tokens.css — Shared shell tokens for the Neon Vigil web app.
+   Infinity 6 Terminal / Hex OS. Audit fix, Nov 8, 2026.
+   One file, included on every signed-in page (hub, Settings, Commands,
+   NV-808, Bible test page, NV-TV, Gridlog, Gigas Garden + Remix wrappers,
+   Avatar Editor (in Settings)). The ticker keeps its own file (nv-ticker.css) and the palette
+   keeps its own (nv-commands.css); this file is the design tokens plus the
+   shell chrome they share: the master header wrapper, the bottom Radio/Hexa
+   dock, and the display-name field + buttons.
+   Hex OS port, Nov 22, 2026 (Base44 hub prototype → live code): ONE typeface
+   everywhere — the clean system monospace stack; the old pixel/terminal
+   display font is retired on every surface. Ground is the near-black
+   #050508 family. Panels and cards are GLASS: a translucent fill with a
+   subtle top sheen, never flat matte behind text. Buttons are bubbled
+   pills: gloss highlight, glowing outline in the active sigil accent,
+   translucent fill, opaque text. Sigil tokens: Hexa cyan #22d3ee, Cyphr
+   indigo #6366f1 (the default accent before a pick), Helix pink #f471b5,
+   Warden green; yellow #facc15 exists only as a tiny icon accent; no
+   standalone violet — indigo leads, violet may trail at gradient ends.
+   Pages add class="nv-shell-page" to <body> so the fixed ticker (top) and
+   the fixed dock (bottom) never cover page content. The hub does NOT use
+   .nv-shell-page — its centred .hub-col already accounts for ticker + dock. */
+
+:root {
+  --nv-bg: #050508;
+  --nv-panel: rgba(15, 9, 27, .78);
+  --nv-sheen: linear-gradient(180deg, rgba(255, 255, 255, .09), rgba(255, 255, 255, .02) 42%, rgba(255, 255, 255, 0) 68%);
+  --nv-line: var(--nv-accent, #8a8a99);
+  --nv-text: #f5f0ff;
+  --nv-accent: var(--nv-accent-soft, #c9c9d4);
+  --nv-font: ui-monospace, Menlo, monospace;
+  --nv-font-size: 18px;
+  --nv-ticker-size: 10px; /* Nov 8, 2026, Jasmine's order — really small, supersedes 14px. The live size comes from nv-ticker.css. */
+}
+
+/* Glass panel: translucent fill + top sheen. Use on any surface that sits
+   behind text. The theme file (nv-symbiont-theme.css) may re-tint the fill
+   color per symbiont; the sheen layer rides on top either way. */
+.nv-glass {
+  background-color: var(--nv-panel);
+  background-image: var(--nv-sheen);
+  border: 1px solid var(--nv-line);
+  border-radius: 16px;
+  color: var(--nv-text);
+  box-sizing: border-box;
+}
+
+/* Bubbled pill button: gloss highlight, glowing outline in the active
+   accent, translucent fill, fully opaque text. */
+.nv-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--nv-font);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--nv-text);
+  background-color: rgba(255, 255, 255, .06);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, .16), rgba(255, 255, 255, .03) 55%, rgba(255, 255, 255, 0));
+  border: 1px solid var(--nv-accent, #6366f1);
+  border-radius: 999px;
+  padding: 9px 18px;
+  box-shadow: 0 0 10px rgba(99, 102, 241, .35), inset 0 1px 0 rgba(255, 255, 255, .22);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--nv-accent, #6366f1) 45%, transparent), inset 0 1px 0 rgba(255, 255, 255, .22);
+  cursor: pointer;
+  box-sizing: border-box;
+}
+.nv-btn:disabled { opacity: .5; cursor: wait; }
+
+/* Wireframe band — its own shared layer, never baked into a panel.
+   A sigil-tinted perspective wireframe grid along the bottom of the
+   screen, scrolling gently toward the viewer, fading at its top edge.
+   Injected by nv-shell.js on shell pages; the hub carries its own inline
+   element. Pure CSS: two gradient grids on a tilted plane. */
+.nv-wireframe {
+  position: fixed;
+  left: -12%;
+  right: -12%;
+  bottom: -10px;
+  height: 118px;
+  z-index: 0;
+  pointer-events: none;
+  opacity: .16;
+  background-image:
+    linear-gradient(var(--nv-accent, #6366f1) 1px, transparent 1px),
+    linear-gradient(90deg, var(--nv-accent, #6366f1) 1px, transparent 1px);
+  background-size: 100% 22px, 46px 100%;
+  transform: perspective(340px) rotateX(64deg);
+  transform-origin: bottom center;
+  -webkit-mask-image: linear-gradient(to top, #000 52%, transparent 96%);
+  mask-image: linear-gradient(to top, #000 52%, transparent 96%);
+  animation: nv-wireframe-scroll 2.8s linear infinite;
+}
+@keyframes nv-wireframe-scroll {
+  from { background-position: 0 0, 0 0; }
+  to { background-position: 0 22px, 0 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nv-wireframe { animation: none; }
+}
+
+/* UI Moments loaders — one per loading moment, recolored to the active
+   sigil token. Exactly one loader per moment; never stack them. */
+/* Boot: a snaking trace around a square outline. */
+.nv-loader-snake {
+  display: inline-block;
+  width: 22px; height: 22px;
+  box-sizing: border-box;
+  border-radius: 4px;
+  background: conic-gradient(from 0deg, transparent 0 30%, var(--nv-accent, #6366f1) 30% 55%, transparent 55% 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  padding: 2px;
+  animation: nv-loader-spin 1.1s linear infinite;
+}
+@keyframes nv-loader-spin { to { transform: rotate(360deg); } }
+/* Sign-in wait: pulsing rings around a point (place over the sigil). */
+.nv-loader-rings {
+  position: relative;
+  display: inline-block;
+  width: 44px; height: 44px;
+}
+.nv-loader-rings::before, .nv-loader-rings::after {
+  content: "";
+  position: absolute; inset: 0;
+  border: 2px solid var(--nv-accent, #6366f1);
+  border-radius: 50%;
+  opacity: 0;
+  animation: nv-loader-ringpulse 1.8s ease-out infinite;
+}
+.nv-loader-rings::after { animation-delay: .9s; }
+@keyframes nv-loader-ringpulse {
+  0% { transform: scale(.35); opacity: .9; }
+  100% { transform: scale(1); opacity: 0; }
+}
+/* Thinking / loading text: a shimmer sweeping the text. */
+.nv-loader-shimmer {
+  background: linear-gradient(90deg, var(--nv-accent-soft, #a5b4fc) 25%, #ffffff 50%, var(--nv-accent-soft, #a5b4fc) 75%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: nv-loader-shimmersweep 1.4s linear infinite;
+}
+@keyframes nv-loader-shimmersweep { to { background-position: -200% 0; } }
+/* Hub loads: three dots cascading. */
+.nv-loader-cascade { display: inline-flex; gap: 6px; align-items: center; }
+.nv-loader-cascade > i {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--nv-accent, #6366f1);
+  animation: nv-loader-cascadefade 1s ease-in-out infinite;
+}
+.nv-loader-cascade > i:nth-child(2) { animation-delay: .15s; }
+.nv-loader-cascade > i:nth-child(3) { animation-delay: .3s; }
+@keyframes nv-loader-cascadefade {
+  0%, 100% { opacity: .25; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(-3px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nv-loader-snake, .nv-loader-rings::before, .nv-loader-rings::after,
+  .nv-loader-shimmer, .nv-loader-cascade > i { animation: none; }
+  .nv-loader-shimmer { color: var(--nv-accent-soft, #a5b4fc); }
+}
+
+/* Radio wave — the dock radio's living wave: still when nothing plays,
+   moving with the sound when it does. Bars tint to the active sigil. */
+.nv-radio-wave { display: inline-flex; align-items: flex-end; gap: 2px; height: 14px; vertical-align: middle; }
+.nv-radio-wave > i { display: block; width: 3px; height: 5px; background: var(--nv-accent, #6366f1); border-radius: 2px; }
+.nv-radio-wave.playing > i { animation: nv-radio-wavebar .9s ease-in-out infinite; }
+.nv-radio-wave.playing > i:nth-child(2) { animation-delay: .15s; }
+.nv-radio-wave.playing > i:nth-child(3) { animation-delay: .3s; }
+.nv-radio-wave.playing > i:nth-child(4) { animation-delay: .45s; }
+.nv-radio-wave.playing > i:nth-child(5) { animation-delay: .6s; }
+@keyframes nv-radio-wavebar {
+  0%, 100% { height: 5px; }
+  50% { height: 13px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nv-radio-wave.playing > i { animation: none; height: 8px; }
+}
+
+/* Page clearance for the fixed ticker (top) and fixed dock (bottom).
+   Phase 1 (Nov 13, 2026): ticker bar is now 16px and the dock 32px
+   (Lofi size table), so clearance shrinks to bar + 8px on each side. */
+body.nv-shell-page {
+  padding-top: 24px;
+  padding-bottom: 40px;
+}
+
+/* Master shell header wrapper — the standard header every signed-in page
+   carries under the ticker: "Infinity6 Terminal" (link back to the hub),
+   the page name, and the palette hint. The hub does not use this — its
+   greeting heading lives inside the terminal box, with "Infinity 6 Terminal"
+   small at the bottom of the box (Nov 8 order). */
+
+.nv-shell-head {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+  max-width: 720px;
+  min-height: 28px; /* Phase 1 (Nov 13, 2026): global header slimmed toward the 28px Lofi target. */
+  margin: 0 auto 18px;
+  padding: 2px 14px;
+  border: 1px solid var(--nv-line);
+  border-radius: 16px;
+  background-color: var(--nv-panel);
+  background-image: var(--nv-sheen);
+  font-family: var(--nv-font);
+  font-size: var(--nv-font-size);
+  color: var(--nv-text);
+  box-sizing: border-box;
+}
+
+.nv-shell-head-title {
+  color: var(--nv-text);
+  text-decoration: none;
+  font-size: 20px;
+}
+.nv-shell-head-title:hover { text-decoration: underline; }
+.nv-shell-head-page { color: var(--nv-accent); }
+.nv-shell-head-hint {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--nv-accent);
+  cursor: pointer;
+}
+
+/* Bottom Radio/Hexa dock — the standard dock. Same layout as the hub's
+   .commands-footer: fixed bottom bar, glass panel, Radio (play/stop +
+   wave + station select) left, Hexa commands button right. The radio
+   carries no label text; the station list stays tucked away until the
+   radio is hovered or focused (the select remains the fallback picker),
+   and scrolling over the radio cycles stations. Injected by nv-shell.js
+   (Infinity6Shell); these rules style it. */
+.nv-shell-dock {
+  position: fixed;
+  bottom: 8px;
+  left: 8px;
+  right: 8px;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  height: 32px; /* Phase 1 (Nov 13, 2026): dock is 32px high (Lofi size table). */
+  font-family: var(--nv-font);
+  font-size: 15px;
+  color: var(--nv-text);
+  border: 1px solid var(--nv-line);
+  border-radius: 16px;
+  box-sizing: border-box;
+  background-color: var(--nv-panel);
+  background-image: var(--nv-sheen);
+}
+.nv-shell-dock-cell {
+  border: 1px solid var(--nv-line);
+  border-radius: 12px;
+  background-color: rgba(255, 255, 255, .03);
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.nv-shell-dock a { color: var(--nv-accent); }
+.nv-shell-dock button {
+  font-family: var(--nv-font);
+  font-size: 13px;
+  height: 28px;
+  padding: 2px 8px;
+  background-color: rgba(255, 255, 255, .06);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, .16), rgba(255, 255, 255, .03) 55%, rgba(255, 255, 255, 0));
+  color: var(--nv-text);
+  border: 1px solid var(--nv-accent, #6366f1);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.nv-shell-dock .nv-shell-commands-btn {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  line-height: 0;
+  box-shadow: none;
+}
+.nv-shell-radio { display: inline-flex; align-items: center; gap: 8px; }
+.nv-shell-dock select {
+  background-color: rgba(255, 255, 255, .06);
+  color: var(--nv-text);
+  border: 1px solid var(--nv-accent, #6366f1);
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 13px;
+  height: 28px;
+  padding: 2px 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .18s ease;
+}
+.nv-shell-radio:hover select, .nv-shell-radio:focus-within select {
+  opacity: 1;
+  pointer-events: auto;
+}
+.nv-shell-dock select option { color: var(--nv-bg); }
+.nv-shell-radio-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+}
+.nv-shell-radio-btn svg { width: 14px; height: 14px; display: block; }
+
+/* Display-name field + buttons — the shell-styled version of the hub's
+   name input. The field is a real visible shell control: 1px accent
+   border, glass panel background, padding, and a 16ch minimum width so
+   it never collapses — the auto-size JS still grows it past 16ch as the
+   name gets longer. The native caret stays hidden; the blinking
+   underscore span beside the input is the cursor (same as hub). */
+
+#nameInput {
+  background-color: var(--nv-panel);
+  background-image: var(--nv-sheen);
+  border: 1px solid var(--nv-line);
+  border-radius: 10px;
+  outline: none;
+  caret-color: transparent;
+  color: var(--nv-text);
+  font-family: inherit;
+  font-size: inherit;
+  padding: 6px 8px;
+  margin: 0;
+  min-width: 16ch;
+}
+
+#saveNameBtn, #editNameBtn, #deleteNameBtn, #signOutBtn {
+  background-color: rgba(255, 255, 255, .06);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, .16), rgba(255, 255, 255, .03) 55%, rgba(255, 255, 255, 0));
+  color: var(--nv-text);
+  border: 1px solid var(--nv-accent, #6366f1);
+  border-radius: 999px;
+  box-shadow: 0 0 10px rgba(99, 102, 241, .35), inset 0 1px 0 rgba(255, 255, 255, .22);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--nv-accent, #6366f1) 45%, transparent), inset 0 1px 0 rgba(255, 255, 255, .22);
+  height: 28px; /* Phase 1 (Nov 13, 2026): 28px visible button height (Lofi size table). */
+  padding: 0 18px;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Touch targets stay 44px on coarse pointers even though the visible
+   button height is 28px (Phase 1, Nov 13, 2026). Dock controls are
+   excluded on purpose: the dock itself is fixed at 32px, and the whole
+   dock cell is the tap area there. */
+@media (pointer: coarse) {
+  #saveNameBtn, #editNameBtn, #deleteNameBtn, #signOutBtn { min-height: 44px; }
+}
+
+/* ============================================================
+   Hex OS: back control, button motion, toasts (Nov 22, 2026)
+   - .nv-back-btn: shared animated Back control (icon only — an
+     exit / go-back sign pictogram, no visible text), injected by
+     nv-shell.js. Escape triggers the same action (see nv-shell.js).
+   - Button motion layer: the all-buttons-animated rule — every
+     button carries hover/press motion; visible keyboard focus.
+   - .nv-toast-*: shared toasts for saves and confirmations,
+     driven by window.NVToast (nv-shell.js).
+   Z-index: the Commands palette overlay is z-index 10
+   (nv-commands.css). Back button sits at 8 and the toast region
+   at 9 — above the dock (3) and ticker (4), below the palette.
+   ============================================================ */
+
+/* --- Back control: icon button, exit-sign pictogram --- */
+.nv-back-btn {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 8;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--nv-font);
+  color: var(--nv-accent, #6366f1);
+  background-color: rgba(255, 255, 255, .06);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, .16), rgba(255, 255, 255, .03) 55%, rgba(255, 255, 255, 0));
+  border: 1px solid var(--nv-accent, #6366f1);
+  border-radius: 12px;
+  box-shadow: 0 0 10px color-mix(in srgb, var(--nv-accent, #6366f1) 45%, transparent), inset 0 1px 0 rgba(255, 255, 255, .22);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  cursor: pointer;
+  box-sizing: border-box;
+  overflow: hidden;
+  transition: transform .18s ease, box-shadow .25s ease, border-color .25s ease;
+}
+.nv-back-btn svg { width: 24px; height: 24px; display: block; position: relative; z-index: 1; }
+.nv-back-btn .nv-back-glyph-arrow { transition: transform .22s ease; }
+.nv-back-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, .22) 50%, transparent 60%);
+  transform: translateX(-120%);
+  transition: transform .6s ease;
+  pointer-events: none;
+}
+.nv-back-btn:hover {
+  transform: translateY(-1px);
+  border-color: var(--nv-accent-soft, #a5b4fc);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--nv-accent, #6366f1) 55%, transparent), inset 0 1px 0 rgba(255, 255, 255, .25);
+}
+.nv-back-btn:hover::after { transform: translateX(120%); }
+.nv-back-btn:hover .nv-back-glyph-arrow { transform: translateX(-2px); }
+.nv-back-btn:active { transform: scale(.95); }
+
+/* --- Button motion layer: all buttons animated --- */
+button {
+  transition: transform .16s ease, box-shadow .22s ease, border-color .22s ease, background-color .22s ease;
+}
+button:active { transform: scale(.97); }
+
+/* Visible keyboard focus on interactive elements. */
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--nv-accent, #6366f1);
+  outline-offset: 2px;
+}
+
+/* --- Toasts: saves and confirmations --- */
+.nv-toast-region {
+  position: fixed;
+  bottom: 84px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  pointer-events: none;
+}
+.nv-toast {
+  font-family: var(--nv-font);
+  font-size: 13px;
+  color: var(--nv-text);
+  background-color: var(--nv-panel);
+  background-image: var(--nv-sheen);
+  border: 1px solid var(--nv-accent, #6366f1);
+  border-radius: 999px;
+  padding: 10px 18px;
+  box-shadow: 0 0 12px color-mix(in srgb, var(--nv-accent, #6366f1) 40%, transparent), inset 0 1px 0 rgba(255, 255, 255, .22);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-sizing: border-box;
+  animation: nvToastIn .25s ease;
+  transition: opacity .3s ease;
+}
+.nv-toast.leaving { opacity: 0; }
+@keyframes nvToastIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Reduced motion: no sheen sweep, no arrow slide, no toast slide —
+   same approach as the wireframe / loader blocks above (animation
+   off; the toast keeps only its .leaving opacity fade). */
+@media (prefers-reduced-motion: reduce) {
+  .nv-back-btn::after { display: none; }
+  .nv-back-btn .nv-back-glyph-arrow { transition: none; }
+  .nv-back-btn:hover .nv-back-glyph-arrow { transform: none; }
+  .nv-toast { animation: none; }
+}
+
+/* ============================================================
+   Hex OS: empty / Not Found / Classified states, screen-reader
+   utility, accessibility preferences (Nov 22, 2026)
+   - .nv-state: the shared state panel (empty, Not Found,
+     Classified) in the glass language.
+   - .nv-state-stamp: the CLASSIFIED stamp. .nv-redacted:
+     redaction bars — layout holds, content hidden.
+   - .nv-sr-only: visually hidden, screen-reader visible.
+   - html[data-a11y-*]: the Options-page accessibility prefs,
+     applied by nv-shell.js from localStorage.
+   ============================================================ */
+
+.nv-state {
+  background-color: var(--nv-panel);
+  background-image: var(--nv-sheen);
+  border: 1px solid var(--nv-line);
+  border-radius: 16px;
+  color: var(--nv-text);
+  font-family: var(--nv-font);
+  padding: 28px;
+  text-align: center;
+  max-width: 520px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+.nv-state-title { font-size: 15px; letter-spacing: .14em; margin: 0 0 8px; }
+.nv-state-line { font-size: 13px; color: var(--nv-accent-soft, #c9c9d4); margin: 0 0 16px; line-height: 1.55; }
+
+.nv-state-stamp {
+  display: inline-block;
+  border: 2px solid currentColor;
+  color: #f87171;
+  letter-spacing: .3em;
+  padding: 4px 10px 4px 13px;
+  transform: rotate(-6deg);
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 4px;
+  opacity: .9;
+}
+
+.nv-redacted {
+  background: repeating-linear-gradient(0deg, rgba(255, 255, 255, .14) 0 8px, rgba(255, 255, 255, .05) 8px 16px);
+  color: transparent;
+  user-select: none;
+  border-radius: 3px;
+}
+
+.nv-sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Accessibility preferences (Options page, applied by nv-shell.js). */
+@media (prefers-reduced-motion: no-preference) {
+  /* placeholder kept minimal: the reduce block below is the override */
+}
+html[data-a11y-motion="reduce"] *, html[data-a11y-motion="reduce"] *::before, html[data-a11y-motion="reduce"] *::after {
+  animation-duration: .01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: .01ms !important;
+}
+html[data-a11y-contrast="high"]:root {
+  --nv-accent: #c7d2fe;
+  --nv-accent-soft: #e0e7ff;
+}
+html[data-a11y-text="large"] { font-size: 112.5%; }
+html[data-a11y-bg="calm"] .nv-wireframe { display: none; }
+
+/* ============================================================
+   Hex OS: error states (Nov 22, 2026)
+   - .nv-toast-error: the error variant of the shared toast —
+     same glass pill, red border/glow, so a failure reads
+     differently from a confirmation at a glance. Driven by
+     NVToast.error (nv-shell.js). Errors go inline or by toast,
+     never in a popup.
+   - .nv-field-error: the small error line under a form field.
+     Hidden by default; pages unhide it (or fill it and remove
+     [hidden]) when a field fails.
+   - .nv-state-error: the page-level failure panel — .nv-state
+     with a red-tinted border; pairs with a Retry pill button
+     (the standard .nv-btn pill styles).
+   ============================================================ */
+
+.nv-toast-error {
+  border-color: #f87171;
+  box-shadow: 0 0 12px rgba(248, 113, 113, .45), inset 0 1px 0 rgba(255, 255, 255, .22);
+}
+
+.nv-field-error {
+  font-family: var(--nv-font);
+  font-size: 12px;
+  color: #f87171;
+  margin-top: 6px;
+  line-height: 1.45;
+}
+.nv-field-error[hidden] { display: none; }
+
+.nv-state-error {
+  border-color: rgba(248, 113, 113, .55);
+  box-shadow: 0 0 16px rgba(248, 113, 113, .18), inset 0 1px 0 rgba(255, 255, 255, .12);
+}
+
+/* ============================================================
+   Hex OS: options popup (Nov 22, 2026)
+   - .nv-opt-btn: the ≡ options button — the back button's twin:
+     same 42px glass pill, fixed top-RIGHT (back is top-left),
+     glyph is three CSS lines. Injected by nv-shell.js on every
+     shell page, full and back-only alike.
+   - .nv-opt-pop: the page-relative options panel under the
+     button. This popup is a settings surface only — errors and
+     confirmations never appear in it (they go inline / by toast).
+   Z-index: the panel sits at 9, with the toast region — above
+   the back button (8) and the dock (3), below the Commands
+   palette overlay (10), which stays the top layer.
+   The .nv-switch component itself is NOT redefined here: the
+   shell loads the shared nv-toggle.css when a page has not
+   already included it, so the switch stays one component.
+   ============================================================ */
+
+.nv-opt-btn {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 8;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--nv-font);
+  color: var(--nv-accent, #6366f1);
+  background-color: rgba(255, 255, 255, .06);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, .16), rgba(255, 255, 255, .03) 55%, rgba(255, 255, 255, 0));
+  border: 1px solid var(--nv-accent, #6366f1);
+  border-radius: 12px;
+  box-shadow: 0 0 10px color-mix(in srgb, var(--nv-accent, #6366f1) 45%, transparent), inset 0 1px 0 rgba(255, 255, 255, .22);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  cursor: pointer;
+  box-sizing: border-box;
+  overflow: hidden;
+  transition: transform .18s ease, box-shadow .25s ease, border-color .25s ease;
+}
+.nv-opt-btn .nv-opt-lines {
+  display: grid;
+  gap: 3px;
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+}
+.nv-opt-btn .nv-opt-lines i {
+  display: block;
+  width: 18px;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+}
+.nv-opt-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, .22) 50%, transparent 60%);
+  transform: translateX(-120%);
+  transition: transform .6s ease;
+  pointer-events: none;
+}
+.nv-opt-btn:hover {
+  transform: translateY(-1px);
+  border-color: var(--nv-accent-soft, #a5b4fc);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--nv-accent, #6366f1) 55%, transparent), inset 0 1px 0 rgba(255, 255, 255, .25);
+}
+.nv-opt-btn:hover::after { transform: translateX(120%); }
+.nv-opt-btn:active { transform: scale(.95); }
+.nv-opt-btn[aria-expanded="true"] {
+  border-color: var(--nv-accent-soft, #a5b4fc);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--nv-accent, #6366f1) 60%, transparent), inset 0 1px 0 rgba(255, 255, 255, .25);
+}
+
+.nv-opt-pop {
+  position: fixed;
+  top: 64px;
+  right: 14px;
+  z-index: 9;
+  width: min(300px, calc(100vw - 28px));
+  min-width: 240px;
+  max-height: calc(100vh - 84px);
+  overflow-y: auto;
+  padding: 14px 16px;
+  font-family: var(--nv-font);
+  color: var(--nv-text);
+  background-color: var(--nv-panel);
+  background-image: var(--nv-sheen);
+  border: 1px solid var(--nv-accent, #6366f1);
+  border-radius: 16px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .55), 0 0 18px color-mix(in srgb, var(--nv-accent, #6366f1) 35%, transparent), inset 0 1px 0 rgba(255, 255, 255, .18);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-sizing: border-box;
+  animation: nvOptIn .18s ease;
+}
+.nv-opt-pop[hidden] { display: none; }
+@keyframes nvOptIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.nv-opt-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.nv-opt-title { font-size: 15px; font-weight: 700; letter-spacing: .1em; }
+.nv-opt-head {
+  font-size: 10px;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: var(--nv-accent-soft, #a5b4fc);
+  text-align: right;
+}
+.nv-opt-subhead {
+  font-size: 10px;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: var(--nv-accent-soft, #a5b4fc);
+  margin: 12px 0 2px;
+}
+
+.nv-opt-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid rgba(255, 255, 255, .07);
+}
+.nv-opt-label { font-size: 13px; font-weight: 700; letter-spacing: .03em; }
+
+.nv-opt-empty {
+  font-size: 12px;
+  color: var(--nv-accent-soft, #c9c9d4);
+  padding: 8px 0 2px;
+  line-height: 1.5;
+}
+
+.nv-opt-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .03em;
+  color: var(--nv-accent-soft, #a5b4fc);
+  text-decoration: none;
+  border-top: 1px solid rgba(255, 255, 255, .07);
+  box-sizing: border-box;
+}
+.nv-opt-link::after { content: "›"; color: var(--nv-accent, #6366f1); font-size: 16px; line-height: 1; }
+.nv-opt-link:hover { color: var(--nv-text); }
+
+.nv-opt-foot { margin-top: 10px; }
+.nv-opt-foot .nv-opt-link { border-top: 1px solid rgba(255, 255, 255, .14); }
+
+@media (prefers-reduced-motion: reduce) {
+  .nv-opt-btn::after { display: none; }
+  .nv-opt-pop { animation: none; }
+}
+
+/* ============================================================
+   Hex OS: unsaved-changes guard (Nov 22, 2026)
+   - .nv-guard-backdrop / .nv-guard: the destructive-exit guard
+     popup — a sanctioned necessary popup. It appears only when
+     a page with unsaved changes (Settings, Profile Editor) is
+     about to be left, and offers Save or Exit.
+   - The message (.nv-guard-msg) is the user's exact sentence;
+     the buttons reuse the standard .nv-btn pill.
+   Z-index: 10 — level with the Commands palette overlay, above
+   the options popup and toast region (9) and the back/options
+   buttons (8). The palette still closes first on Escape: the
+   shell's keydown handler checks the palette before the guard.
+   ============================================================ */
+
+.nv-guard-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(3, 3, 8, .62);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  box-sizing: border-box;
+}
+.nv-guard-backdrop[hidden] { display: none; }
+
+.nv-guard {
+  background-color: var(--nv-panel);
+  background-image: var(--nv-sheen);
+  border: 1px solid var(--nv-accent, #6366f1);
+  border-radius: 16px;
+  color: var(--nv-text);
+  font-family: var(--nv-font);
+  padding: 28px;
+  text-align: center;
+  max-width: 520px;
+  width: 100%;
+  box-sizing: border-box;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .55), 0 0 18px color-mix(in srgb, var(--nv-accent, #6366f1) 35%, transparent), inset 0 1px 0 rgba(255, 255, 255, .18);
+  animation: nvGuardIn .18s ease;
+}
+@keyframes nvGuardIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.nv-guard-msg {
+  font-size: 15px;
+  line-height: 1.55;
+  margin: 0 0 20px;
+}
+
+.nv-guard-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.nv-guard-save {
+  border-color: var(--nv-accent-soft, #a5b4fc);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--nv-accent, #6366f1) 55%, transparent), inset 0 1px 0 rgba(255, 255, 255, .22);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nv-guard { animation: none; }
+}

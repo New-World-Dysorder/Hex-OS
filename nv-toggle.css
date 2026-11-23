@@ -1,0 +1,49 @@
+/* nv-toggle.css — the shared on/off switch for the whole web app.
+   RULE (Nov 9, 2026, User's, standing): anything that is on/off gets a
+   visual toggle switch — it dims when off and lights up when toggled on.
+   Use it for every on/off control on every page, not just the Avatar
+   Editor. A pick (choosing one of several) is NOT a toggle; a switch is
+   only for a single on/off state.
+
+   Usage:
+     <button type="button" class="nv-switch" role="switch"
+             aria-checked="false" aria-label="Auto-rotate">
+       <span class="nv-switch-knob"></span>
+     </button>
+   Pair it with a text label. Set aria-checked="true" when on. The knob
+   slides right and the track lights up in the symbiont accent; off is dim grey. */
+.nv-switch {
+  display: inline-flex; align-items: center; flex: none;
+  width: 44px; height: 24px; padding: 0;
+  background: #26262b; border: 1px solid #3d3d46; border-radius: 999px;
+  cursor: pointer; position: relative; vertical-align: middle;
+  opacity: 0.55;
+  transition: background .18s ease, border-color .18s ease,
+    opacity .18s ease, box-shadow .18s ease;
+}
+.nv-switch .nv-switch-knob {
+  display: block; width: 18px; height: 18px; border-radius: 50%;
+  background: #9aa7b4; margin-left: 2px;
+  transition: transform .18s ease, background .18s ease;
+}
+.nv-switch[aria-checked="true"] {
+  background: var(--nv-accent); border-color: var(--nv-accent); opacity: 1;
+  box-shadow: 0 0 12px rgba(99, 102, 241, .45);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--nv-accent) 45%, transparent);
+}
+.nv-switch[aria-checked="true"] .nv-switch-knob {
+  transform: translateX(20px); background: #0b0618;
+}
+.nv-switch:hover { border-color: var(--nv-accent); }
+.nv-switch:focus-visible { outline: 2px solid var(--nv-accent-soft); outline-offset: 2px; }
+/* A labelled switch row: label text + switch. The label dims with the
+   switch when off, via the .nv-switch-row-off class set by JS. */
+.nv-switch-row {
+  display: inline-flex; align-items: center; gap: 10px;
+  font-size: 13px; font-weight: 700; letter-spacing: .03em;
+  cursor: pointer; color: #e9f4f6;
+}
+.nv-switch-row.nv-switch-row-off { color: #9aa7b4; }
+@media (prefers-reduced-motion: reduce) {
+  .nv-switch, .nv-switch .nv-switch-knob { transition: none; }
+}

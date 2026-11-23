@@ -1,0 +1,33 @@
+/* nv-type.css — inline typing for the whole web app.
+   RULE (Nov 9, 2026, User's, standing): no text box pops up when you
+   type, anywhere. Typing happens inline at the cursor — the typing
+   cursor acts as the typing cursor everywhere the player/user needs
+   to type. Inputs are borderless and transparent; there is no box
+   around the text. A single-line input hides its native caret and
+   shows a blinking cursor character after the text (the hub terminal
+   pattern); a multi-line area keeps its native caret, borderless.
+   Use .nv-type on single-line <input> elements and .nv-type-area on
+   multi-line <textarea> elements. Pair a .nv-type input with a
+   <span class="nv-type-cursor">_</span> right after it, and size the
+   input to its text (see nvTypeSize in the page JS). */
+.nv-type {
+  background: transparent; border: 0; outline: none;
+  caret-color: transparent; color: #f5f0ff;
+  font-family: inherit; font-size: inherit;
+  padding: 0; margin: 0;
+  width: 1ch; min-width: 1ch;
+}
+.nv-type::placeholder { color: #626d7d; }
+.nv-type-area {
+  background: transparent; border: 0; outline: none;
+  color: #f5f0ff; caret-color: #f5f0ff;
+  font-family: inherit; font-size: inherit;
+  padding: 0; margin: 0; width: 100%; resize: none;
+  line-height: 1.4;
+}
+.nv-type-area::placeholder { color: #626d7d; }
+.nv-type-cursor {
+  display: inline-block; animation: nv-blink 1.2s steps(2,start) infinite;
+  color: #ffffff;
+}
+@keyframes nv-blink { 50% { opacity: 0; } }

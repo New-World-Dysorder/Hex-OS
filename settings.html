@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Settings — Infinity6 Terminal</title>
+  
+  <link rel="stylesheet" href="./nv-commands.css">
+  <link rel="stylesheet" href="./nv-terminal-tokens.css">
+  <link rel="stylesheet" href="./nv-ticker.css">
+  <link rel="stylesheet" href="./nv-sprite.css">
+  <link rel="stylesheet" href="./nv-symbiont-theme.css">
+  <script src="./nv-symbiont-theme.js"></script>
+  <style>
+    body { background:#050508; color:#f5f0ff; font-family:ui-monospace, Menlo, monospace; font-size:18px; margin:0; min-height:100vh; display:grid; place-items:center; }
+    .bg { position:fixed; inset:0; background-image:url("ships-bridge.jpg"); background-size:cover; background-position:center; z-index:0; pointer-events:none; }
+    .static-top { position:fixed; inset:0; z-index:1; pointer-events:none; opacity:.38; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.25' numOctaves='3'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)'/%3E%3C/svg%3E"); }
+    main { position:relative; z-index:2; width:100%; max-width:560px; padding:32px; box-sizing:border-box; text-align:center; border:1px solid var(--nv-accent); border-radius:16px; background-color:rgba(15,9,27,.85); background-image:var(--nv-sheen); }
+    section { text-align:left; border-top:1px solid var(--nv-accent); margin-top:24px; padding-top:8px; }
+    section:first-of-type { border-top:0; margin-top:8px; }
+    h2 { font-size:20px; margin:12px 0; }
+    button { background-color:rgba(255,255,255,.06); background-image:linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,.03) 55%, rgba(255,255,255,0)); color:#f5f0ff; border:1px solid var(--nv-accent); border-radius:999px; box-shadow:0 0 10px rgba(99,102,241,.35), inset 0 1px 0 rgba(255,255,255,.22); box-shadow:0 0 10px color-mix(in srgb, var(--nv-accent) 45%, transparent), inset 0 1px 0 rgba(255,255,255,.22); padding:10px 18px; font-weight:700; cursor:pointer; font-family:inherit; font-size:18px; }
+    button.selected { background:var(--nv-accent); }
+    a { color:var(--nv-accent-soft); }
+    .cursor-blink { display:inline-block; animation:nv-blink 1.2s steps(2,start) infinite; color:#ffffff; }
+    /* Display-name field: styled by nv-terminal-tokens.css (visible 1px
+       violet border, panel background, 16ch minimum width). The old inline
+       rule (border:0, width:1ch) rendered as an unstyled ~4px sliver when
+       empty — audit fix, Nov 8, 2026. #who grid + User: label stay here. */
+    #who { display:grid; grid-template-columns:auto 1fr; gap:4px 8px; text-align:left; max-width:340px; margin:0 auto; }
+    .user-label { grid-column:1; }
+    .name-cell { grid-column:2; white-space:nowrap; }
+    .save-cell { grid-column:2; }
+    @keyframes nv-blink { 50% { opacity:0; } }
+    .palette-hint { font-size:13px; color:var(--nv-accent-soft); margin-top:18px; cursor:pointer; }
+    .avatar-current { width:96px; height:96px; border:1px solid var(--nv-accent); object-fit:cover; display:block; margin:8px 0; }
+    .avatar-blank { width:96px; height:96px; border:1px solid var(--nv-accent); display:block; margin:8px 0; box-sizing:border-box; }
+    .choice-row { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0; }
+    .avatar-note { color:var(--nv-accent-soft); }
+    #avatarFile { font-family:inherit; font-size:16px; color:#f5f0ff; }
+    #avatarPreview { width:96px; height:96px; border:1px solid var(--nv-accent); object-fit:cover; display:block; margin:8px 0; }
+    .nv-sound-btn{position:fixed;right:16px;bottom:16px;z-index:6;width:44px;height:44px;padding:0;display:flex;align-items:center;justify-content:center;background-color:rgba(15,9,27,.88);background-image:var(--nv-sheen);color:#f5f0ff;border:1px solid var(--nv-accent);border-radius:999px;cursor:pointer}.nv-sound-btn svg{width:20px;height:20px;display:block}.nv-sound-btn:disabled{opacity:.5;cursor:wait}
+    /* Settings Save (Nov 22, 2026): the one icon-only Save —
+       floppy glyph, no text, aria-label carries the name. */
+    .settings-save-row { margin:4px 0 0; }
+    #settingsSaveBtn { width:44px; height:44px; min-width:44px; padding:0; display:inline-flex; align-items:center; justify-content:center; }
+    #settingsSaveBtn svg { width:22px; height:22px; display:block; fill:currentColor; }
+    #settingsSaveBtn:disabled { opacity:.5; cursor:wait; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./config.js"></script>
+</head>
+<body class="nv-shell-page">
+  <div class="bg" aria-hidden="true"></div>
+  <div class="static-top" aria-hidden="true"></div>
+  <main>
+    <h1>Settings</h1>
+    <p class="settings-save-row"><button type="button" id="settingsSaveBtn" aria-label="Save" title="Save"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg></button></p>
+    <p><a href="hub.html">Back to hub</a></p>
+
+    <section aria-label="Profile">
+      <h2>Profile</h2>
+      <p><a href="/profile/">Profile</a> — your profile page.</p>
+      <p><a href="/settings/profile-editor/">Profile Editor</a> — picture, username, and IA Symbiont base.</p>
+      <p><a href="/settings/avatar-editor/">Avatar Editor</a> — build your avatar.</p>
+    </section>
+
+    <section aria-label="Sign out">
+      <h2>Sign out</h2>
+      <p><button type="button" id="settingsSignOutBtn">Sign out</button></p>
+    </section>
+
+    <p class="palette-hint" data-nv-commands>Press ⌘K for commands</p>
+  </main>
+
+  <script src="./auth.js"></script>
+  <script src="./nv-commands.js"></script>
+  <!-- Nov 8, 2026 lock: bottom-right ⌘K icon on EVERY page. Settings had the
+       palette (keyboard) but no dock/icon — nv-shell.js injects the standard
+       bottom dock (Radio + Hexa/Commands button, wired to NVCommands.open()).
+       Safe here: nv-ticker.js / nv-commands.js guard against double-load. -->
+  <script src="./nv-shell.js"></script>
+  <script src="./nv-ticker.js"></script>
+  <script src="./nv-sprite.js"></script>
+  <script>
+    function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+    /* saveToAccount (revived Nov 22, 2026): this used to be dead
+       code — defined, never called, and it swallowed every error
+       with an empty catch. It is the Settings Save's account
+       channel: Supabase auth.updateUser({ data }) — the same
+       channel options.html's saveNameToAccount uses. It now
+       RETURNS a promise resolving true/false so the Save button
+       and the unsaved-changes guard can tell success from
+       failure and say so (toast) instead of staying silent. */
+    function saveToAccount(data) {
+      try {
+        var c = (typeof getClient === 'function') ? getClient() : null;
+        if (!c) return Promise.resolve(false);
+        return c.auth.updateUser({ data: data }).then(function (res) {
+          return !(res && res.error);
+        }).catch(function () { return false; });
+      } catch (e) { return Promise.resolve(false); }
+    }
+
+    /* ---- Settings Save + unsaved-changes guard ----
+       Editable-state inventory (Nov 22, 2026): this page has NO
+       editable fields — no inputs, selects, textareas, toggles
+       or pickers. Its only controls are navigation links and
+       Sign out; profile editing lives in the Profile Editor.
+       So there is no page state to collect: the Save performs
+       saveToAccount's account call with an empty data object
+       (a no-op metadata write through the real channel) and
+       reports the result truthfully. No settings were invented.
+       The dirty flag below is wired to input/change events in
+       <main> all the same, so if a field ever lands on this
+       page the guard starts working with no new wiring. */
+    var settingsDirty = false;
+    document.addEventListener('input', function (e) {
+      if (e.target && e.target.closest && e.target.closest('main')) settingsDirty = true;
+    });
+    document.addEventListener('change', function (e) {
+      if (e.target && e.target.closest && e.target.closest('main')) settingsDirty = true;
+    });
+    function saveSettingsNow() {
+      var btn = document.getElementById('settingsSaveBtn');
+      if (btn) btn.disabled = true;
+      return saveToAccount({}).then(function (ok) {
+        if (btn) btn.disabled = false;
+        if (ok) {
+          settingsDirty = false;
+          if (window.NVToast) NVToast.show('Saved');
+        } else {
+          if (window.NVToast) NVToast.error('Save failed — try again');
+        }
+        return ok;
+      });
+    }
+    document.getElementById('settingsSaveBtn').addEventListener('click', saveSettingsNow);
+    if (window.NVGuard) {
+      NVGuard.register({
+        isDirty: function () { return settingsDirty; },
+        save: saveSettingsNow,
+        clearDirty: function () { settingsDirty = false; }
+      });
+    }
+
+    /* ---- Sign out ---- */
+    document.getElementById('settingsSignOutBtn').addEventListener('click', signOut);
+
+    requireSession('index.html').then(function (user) {
+      if (!user) return;
+      /* Profile editing lives in the Profile Editor now — Settings only
+         links to it. */
+    });
+  </script>
+<script>
+/* Moving TV static over the Settings background, underneath everything — same
+   grain as the hub, repositioned every 90ms so it shimmers. */
+(function () {
+  var topStatic = document.querySelector('.static-top');
+  if (!topStatic) return;
+  setInterval(function () {
+    var sx = Math.floor(Math.random() * 240), sy = Math.floor(Math.random() * 240);
+    topStatic.style.backgroundPosition = sx + 'px ' + sy + 'px';
+  }, 90);
+})();
+</script>
+</body>
+</html>

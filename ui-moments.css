@@ -1,0 +1,114 @@
+/* ui-moments.css — Neon Vigil UI Moments (Hex OS core set)
+   Adapted from UI Moments by @guanmo_ai (https://github.com/guanmo-ai/ui-moments, MIT).
+   See THIRD_PARTY_NOTICES.md. Recolored from the source's monochrome to the
+   live symbiont theme tokens (--nv-accent / --nv-accent-bright), so every
+   moment follows the player's chosen IA Symbiont. The site's choices are
+   the IA Symbionts only. Green on the site is the Warden theme (in game
+   canon, green is Nexus — game canon only). Yellow (#facc15) is a sigil /
+   icon accent only — never skin — and its symbiont has no name yet.
+   Dark stays dark.
+   One loader per loading moment. Reduced-motion is respected throughout. */
+
+:root {
+  --um-accent: var(--nv-accent, #818cf8);
+  --um-accent-bright: var(--nv-accent-bright, #a5b4fc);
+  --um-warden: #22c55e; /* Warden green — also a full theme in nv-symbiont-theme.css */
+  --um-yellow: #facc15; /* sigil/icon accent only, never skin; its symbiont is unnamed (Nov 20) */
+  --um-bg: #05010f;
+}
+
+/* — Boot / wake-up: Infinity Square Snake — */
+.um-boot {
+  position: fixed; inset: 0; z-index: 999;
+  background: var(--um-bg);
+  display: grid; place-items: center;
+  transition: opacity .45s ease;
+}
+.um-boot.um-done { opacity: 0; pointer-events: none; }
+.um-snake rect {
+  stroke: var(--um-accent); stroke-width: 3; fill: none;
+  stroke-dasharray: 38 106;
+  animation: um-snake 1.5s linear infinite;
+}
+@keyframes um-snake { to { stroke-dashoffset: -144; } }
+
+/* — Sigil login, waiting on auth: Pulse Rings Multiple —
+   Zero-height anchor placed at the top of <main>; the rings centre
+   themselves on the logo / sigil below it. Hidden until .um-on. */
+.um-sigil-wait { position: relative; height: 0; pointer-events: none; }
+.um-sigil-wait span {
+  position: absolute; left: 50%; top: 104px;
+  width: 150px; height: 150px; margin: -75px 0 0 -75px;
+  border: 2px solid var(--um-accent); border-radius: 50%;
+  opacity: 0;
+}
+.um-sigil-wait.um-on span { animation: um-ring 2.1s ease-out infinite; }
+.um-sigil-wait.um-on span:nth-child(2) { animation-delay: .7s; }
+.um-sigil-wait.um-on span:nth-child(3) { animation-delay: 1.4s; }
+@keyframes um-ring {
+  0% { transform: scale(.32); opacity: .9; }
+  100% { transform: scale(1); opacity: 0; }
+}
+
+/* — Hub section loads: Cascade — */
+.um-cascade > * { opacity: 0; animation: um-cascade-in .55s ease forwards; }
+.um-cascade > *:nth-child(1) { animation-delay: .05s; }
+.um-cascade > *:nth-child(2) { animation-delay: .16s; }
+.um-cascade > *:nth-child(3) { animation-delay: .27s; }
+.um-cascade > *:nth-child(4) { animation-delay: .38s; }
+.um-cascade > *:nth-child(5) { animation-delay: .49s; }
+.um-cascade > *:nth-child(6) { animation-delay: .60s; }
+@keyframes um-cascade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* — IA thinking states: Text Shimmer / Text Dots — */
+.um-think-shimmer {
+  background: linear-gradient(90deg, var(--um-accent) 20%, #f5f0ff 50%, var(--um-accent) 80%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text; background-clip: text;
+  color: transparent;
+  animation: um-shimmer 1.8s linear infinite;
+}
+@keyframes um-shimmer { to { background-position: -200% 0; } }
+.um-think-dots i {
+  display: inline-block; width: 5px; height: 5px; margin-left: 3px;
+  border-radius: 50%; background: var(--um-accent-bright);
+  animation: um-dot 1.2s ease-in-out infinite;
+}
+.um-think-dots i:nth-child(2) { animation-delay: .15s; }
+.um-think-dots i:nth-child(3) { animation-delay: .3s; }
+@keyframes um-dot {
+  0%, 60%, 100% { transform: translateY(0); opacity: .5; }
+  30% { transform: translateY(-5px); opacity: 1; }
+}
+
+/* — System / status transitions: Dash Ring — */
+.um-dash-ring {
+  display: inline-block; width: 18px; height: 18px; border-radius: 50%;
+  border: 2px dashed var(--um-accent);
+  animation: um-spin 1.4s linear infinite;
+  vertical-align: -3px;
+}
+@keyframes um-spin { to { transform: rotate(360deg); } }
+
+/* — Tap feedback: Ripple — */
+[data-um-ripple] { position: relative; overflow: hidden; }
+.um-rip {
+  position: absolute; border-radius: 50%;
+  background: var(--um-accent); opacity: .45;
+  transform: scale(0); pointer-events: none;
+  animation: um-rip .6s ease-out forwards;
+}
+@keyframes um-rip { to { transform: scale(4); opacity: 0; } }
+
+/* — Reduced motion: every moment holds still — */
+@media (prefers-reduced-motion: reduce) {
+  .um-snake rect, .um-sigil-wait.um-on span, .um-cascade > *,
+  .um-think-shimmer, .um-think-dots i, .um-dash-ring, .um-rip {
+    animation: none !important;
+  }
+  .um-cascade > * { opacity: 1; }
+  .um-boot { transition: none; }
+}

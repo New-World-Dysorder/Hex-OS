@@ -1,0 +1,15 @@
+/* nv-commands.css — Shared Commands popup (Cmd+K) for the Neon Vigil web app.
+   Infinity 6 Terminal / Hex OS. One module, included on hub, Settings, NV-808,
+   and Grid Log. Same look as the hub palette it replaces: 560px panel,
+   1px var(--nv-accent, #8a8a99) border, glass background. The font is set
+   here (not inherited) so the popup reads in the shared system monospace
+   stack even on pages whose own font is different. Hex OS port,
+   Nov 22, 2026: glass panel (translucent fill + sheen), pill input row. */
+.palette-overlay { position:fixed; inset:0; z-index:10; background:rgba(5,5,8,.72); display:none; font-family:ui-monospace, Menlo, monospace; font-size:18px; color:#f5f0ff; }
+.palette-overlay.open { display:block; }
+.palette { max-width:560px; margin:15vh auto 0; border:1px solid var(--nv-accent, #8a8a99); border-radius:16px; background-color:rgba(14,9,26,.96); background-image:linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.02) 42%, rgba(255,255,255,0) 68%); text-align:left; overflow:hidden; }
+#paletteInput { width:100%; box-sizing:border-box; background:transparent; border:0; border-bottom:1px solid var(--nv-accent, #8a8a99); outline:none; color:#f5f0ff; font-family:inherit; font-size:20px; padding:14px 16px; }
+.palette-list { list-style:none; margin:0; padding:6px 0; max-height:50vh; overflow:auto; }
+.palette-item { padding:10px 16px; cursor:pointer; }
+.palette-item .hint { float:right; color:var(--nv-accent-soft, #c9c9d4); font-size:13px; }
+.palette-item.selected { background:var(--nv-accent, #8a8a99); }

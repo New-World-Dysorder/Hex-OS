@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en" data-nv-shell="back-only" data-nv-page-name="Options">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Commands — Infinity6 Terminal</title>
+  
+  <link rel="stylesheet" href="./nv-terminal-tokens.css">
+  <link rel="stylesheet" href="./nv-ticker.css">
+  <link rel="stylesheet" href="./nv-symbiont-theme.css">
+  <link rel="stylesheet" href="./nv-toggle.css">
+  <script src="./nv-symbiont-theme.js"></script>
+  <style>
+    body { background:#050508 url("ships-bridge.jpg") center/cover no-repeat fixed; color:#f5f0ff; font-family:ui-monospace, Menlo, monospace; font-size:18px; margin:0; min-height:100vh; display:grid; place-items:center; }
+    main { max-width:560px; padding:32px; text-align:center; border:1px solid var(--nv-accent); border-radius:16px; background-color:rgba(15,9,27,.85); background-image:var(--nv-sheen); }
+    button { background-color:rgba(255,255,255,.06); background-image:linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,.03) 55%, rgba(255,255,255,0)); color:#f5f0ff; border:1px solid var(--nv-accent); border-radius:999px; box-shadow:0 0 10px rgba(99,102,241,.35), inset 0 1px 0 rgba(255,255,255,.22); box-shadow:0 0 10px color-mix(in srgb, var(--nv-accent) 45%, transparent), inset 0 1px 0 rgba(255,255,255,.22); padding:10px 18px; font-weight:700; cursor:pointer; }
+    a { color:var(--nv-accent-soft); }
+    .cursor-blink { display:inline-block; animation:nv-blink 1.2s steps(2,start) infinite; color:#ffffff; }
+    /* Display-name field: styled by nv-terminal-tokens.css (visible 1px
+       violet border, panel background, 16ch minimum width). The old inline
+       rule (border:0, width:1ch) rendered as an unstyled ~4px sliver when
+       empty — audit fix, Nov 8, 2026. #who grid + User: label stay here. */
+    #who { display:grid; grid-template-columns:auto 1fr; gap:4px 8px; text-align:left; max-width:340px; margin:0 auto; }
+    .user-label { grid-column:1; }
+    .name-cell { grid-column:2; white-space:nowrap; }
+    .save-cell { grid-column:2; }
+    @keyframes nv-blink { 50% { opacity:0; } }
+    .nv-sound-btn{position:fixed;right:16px;bottom:16px;z-index:6;width:44px;height:44px;padding:0;display:flex;align-items:center;justify-content:center;background-color:rgba(15,9,27,.88);background-image:var(--nv-sheen);color:#f5f0ff;border:1px solid var(--nv-accent);border-radius:999px;cursor:pointer}.nv-sound-btn svg{width:20px;height:20px;display:block}.nv-sound-btn:disabled{opacity:.5;cursor:wait}
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./config.js"></script>
+</head>
+<body class="nv-shell-page">
+  <main>
+    <h1>Commands</h1>
+    <p id="who">Checking your sign-in…</p>
+    <nav class="commands-links" aria-label="Commands">
+      <!-- Audit fix Nov 8, 2026: game links stay inside the app shell — the
+           Commands page routes to the same-origin shell wrappers
+           (/gigas-garden/) and the real Grid Log page (/gridlog/),
+           never out to an external URL or the Bible test page. -->
+      <p><a href="/gigas-garden/">iKG://GigasGarden.Construct</a></p>
+      <p><a href="/settings/avatar-editor/">Avatar Editor</a></p>
+      <p><a href="/profile/">Profile</a></p>
+      <p><a href="/ia-symbiont/">IA Symbiont</a></p>
+      <p><a href="/nv808/">NV_808</a></p>
+      <p><a href="/gridlog/">NV_Gridlog</a></p>
+      <p><a href="/nv-tv.html">NV-TV</a></p>
+    </nav>
+    <section aria-label="Accessibility">
+      <h2>Accessibility</h2>
+      <p><span class="nv-switch-row" id="a11yMotionLabel">Reduce motion</span> <button type="button" class="nv-switch" id="a11yMotion" role="switch" aria-checked="false" aria-labelledby="a11yMotionLabel"><span class="nv-switch-knob"></span></button></p>
+      <p><span class="nv-switch-row" id="a11yContrastLabel">High contrast</span> <button type="button" class="nv-switch" id="a11yContrast" role="switch" aria-checked="false" aria-labelledby="a11yContrastLabel"><span class="nv-switch-knob"></span></button></p>
+      <p><span class="nv-switch-row" id="a11yTextLabel">Large text</span> <button type="button" class="nv-switch" id="a11yText" role="switch" aria-checked="false" aria-labelledby="a11yTextLabel"><span class="nv-switch-knob"></span></button></p>
+      <p><span class="nv-switch-row" id="a11yBgLabel">Calm background</span> <button type="button" class="nv-switch" id="a11yBg" role="switch" aria-checked="false" aria-labelledby="a11yBgLabel"><span class="nv-switch-knob"></span></button></p>
+      <p><span class="nv-switch-row" id="a11yAnnounceLabel">Screen reader announcements</span> <button type="button" class="nv-switch" id="a11yAnnounce" role="switch" aria-checked="false" aria-labelledby="a11yAnnounceLabel"><span class="nv-switch-knob"></span></button></p>
+    </section>
+    <p><a href="hub.html">Back to hub</a></p>
+  </main>
+  <script src="./auth.js"></script>
+  <script>
+    function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+    function savedName() { return localStorage.getItem('nv_display_name') || ''; }
+    function saveNameToAccount(v) {
+      try {
+        var c = (typeof getClient === 'function') ? getClient() : null;
+        if (c) { c.auth.updateUser({ data: { display_name: v } }).catch(function () {}); }
+      } catch (e) {}
+    }
+    function accountName(user) { return (user && user.user_metadata && user.user_metadata.display_name) ? user.user_metadata.display_name : ''; }
+    function sizeInput() {
+      var inp = document.getElementById('nameInput');
+      if (inp) { inp.style.width = Math.max(1, inp.value.length + 1) + 'ch'; }
+    }
+    function showEdit(prefill) {
+      document.getElementById('who').innerHTML = '<span class="user-label">User:</span> <span class="name-cell"><input id="nameInput" maxlength="60" aria-label="Display name" autocomplete="off"><span class="cursor-blink">_</span></span> <span class="save-cell"><button id="saveNameBtn">Save</button></span> <span class="save-cell"><button id="signOutBtn">Sign out</button></span>';
+      var inp = document.getElementById('nameInput');
+      inp.value = prefill || '';
+      sizeInput();
+      inp.addEventListener('input', sizeInput);
+      inp.focus();
+      document.getElementById('saveNameBtn').addEventListener('click', function () {
+        var v = inp.value.trim();
+        if (v) { localStorage.setItem('nv_display_name', v); saveNameToAccount(v); } else { localStorage.removeItem('nv_display_name'); saveNameToAccount(null); }
+        if (window.NVToast) NVToast.show('Saved');
+        renderName();
+      });
+      document.getElementById('signOutBtn').addEventListener('click', signOut);
+    }
+    function renderName(user) {
+      var name = savedName() || accountName(user);
+      if (name) { localStorage.setItem('nv_display_name', name); }
+      if (name) {
+        document.getElementById('who').innerHTML = '<span class="user-label">User:</span> <span class="name-cell">' + esc(name) + '<span class="cursor-blink">_</span></span> <span class="save-cell"><button id="editNameBtn">Change name</button> <button id="deleteNameBtn">Delete name</button></span> <span class="save-cell"><button id="signOutBtn">Sign out</button></span>';
+        document.getElementById('signOutBtn').addEventListener('click', signOut);
+        document.getElementById('editNameBtn').addEventListener('click', function () { showEdit(name); });
+        document.getElementById('deleteNameBtn').addEventListener('click', function () {
+          localStorage.removeItem('nv_display_name');
+          saveNameToAccount(null);
+          renderName();
+        });
+      } else {
+        showEdit('');
+      }
+    }
+    requireSession('index.html').then(function (user) {
+      if (user) { renderName(user); }
+    });
+  </script>
+<audio id="nvSoundBed3" src="sounds/neon-vigil-sound-bed-3-loop.wav" loop preload="none"></audio>
+<button type="button" id="nvSoundBed3Btn" class="nv-sound-btn" aria-label="Play Sound Bed 3" title="Play Sound Bed 3"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg></button>
+<script>
+(function () {
+  var a = document.getElementById('nvSoundBed3');
+  var b = document.getElementById('nvSoundBed3Btn');
+  if (!a || !b) return;
+  var playSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg>';
+  var stopSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12"/></svg>';
+  function sync() {
+    b.innerHTML = a.paused ? playSvg : stopSvg;
+    b.setAttribute('aria-label', a.paused ? 'Play Sound Bed 3' : 'Stop Sound Bed 3');
+    b.setAttribute('title', a.paused ? 'Play Sound Bed 3' : 'Stop Sound Bed 3');
+  }
+  function locked() { return document.body.classList.contains('cookie-locked'); }
+  b.addEventListener('click', function () {
+    if (locked()) return;
+    if (a.paused) { a.play().catch(function () {}); } else { a.pause(); }
+  });
+  a.addEventListener('play', sync);
+  a.addEventListener('pause', sync);
+  function onFirstTap(e) {
+    if (locked()) return;
+    if (b.contains(e.target)) return;
+    a.play().catch(function () {});
+    document.removeEventListener('pointerdown', onFirstTap);
+  }
+  document.addEventListener('pointerdown', onFirstTap);
+  sync();
+})();
+</script>
+<script>
+  /* Select sound (Mouse Click 1): plays once when a Commands link is chosen
+     — every link here navigates to another page. A short delay lets the
+     click be heard before the page changes. */
+  (function () {
+    var s = new Audio('sounds/neon-vigil-mouse-click-1.wav');
+    s.volume = 0.5;
+    function playSelect() { try { s.currentTime = 0; var p = s.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {} }
+    document.querySelectorAll('main a').forEach(function (a) {
+      a.addEventListener('click', function (e) {
+        e.preventDefault();
+        playSelect();
+        var href = a.getAttribute('href');
+        setTimeout(function () { location.href = href; }, 200);
+      });
+    });
+  })();
+</script>
+<script src="./nv-ticker.js"></script>
+<script src="./nv-shell.js"></script>
+<script>
+  /* Accessibility options (Nov 22, 2026): .nv-switch toggles, one
+     localStorage key each, applied site-wide by nv-shell.js at
+     init (html[data-a11y-*]). A change saves at once + toast. */
+  (function () {
+    var A11Y = [
+      { id: 'a11yMotion',   key: 'nv_a11y_motion',   on: 'reduce', off: 'auto', defOn: false },
+      { id: 'a11yContrast', key: 'nv_a11y_contrast', on: 'high',   off: 'auto', defOn: false },
+      { id: 'a11yText',     key: 'nv_a11y_text',     on: 'large',  off: 'auto', defOn: false },
+      { id: 'a11yBg',       key: 'nv_a11y_bg',       on: 'calm',   off: 'auto', defOn: false },
+      { id: 'a11yAnnounce', key: 'nv_a11y_announce', on: 'on',     off: 'off',  defOn: true }
+    ];
+    A11Y.forEach(function (cfg) {
+      var btn = document.getElementById(cfg.id);
+      if (!btn) return;
+      var label = document.getElementById(cfg.id + 'Label');
+      function paint(on) {
+        btn.setAttribute('aria-checked', on ? 'true' : 'false');
+        if (label) label.classList.toggle('nv-switch-row-off', !on);
+      }
+      var stored = null;
+      try { stored = localStorage.getItem(cfg.key); } catch (e) {}
+      paint(stored !== null ? stored === cfg.on : cfg.defOn);
+      btn.addEventListener('click', function () {
+        var on = btn.getAttribute('aria-checked') !== 'true';
+        paint(on);
+        try { localStorage.setItem(cfg.key, on ? cfg.on : cfg.off); } catch (e) {}
+        if (window.NVToast) NVToast.show('Saved');
+      });
+    });
+  })();
+</script>
+<link rel="stylesheet" href="./nv-sprite.css">
+<script src="./nv-sprite.js" data-nv-sprite-mode="static"></script>
+</body>
+</html>

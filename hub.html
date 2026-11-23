@@ -1,0 +1,753 @@
+<!doctype html>
+<html lang="en" data-nv-shell="back-only">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Infinity6 Terminal</title>
+  
+  <link rel="stylesheet" href="./nv-ticker.css">
+  <link rel="stylesheet" href="./nv-commands.css">
+  <link rel="stylesheet" href="./nv-terminal-tokens.css">
+  <link rel="stylesheet" href="./nv-sprite.css">
+  <link rel="stylesheet" href="./nv-symbiont-theme.css">
+  <link rel="stylesheet" href="./ui-moments.css">
+  <script src="./nv-symbiont-theme.js"></script>
+  <style>
+    body { background:#050508; color:#f5f0ff; font-family:ui-monospace, Menlo, monospace; font-size:18px; margin:0; min-height:100vh; display:grid; place-items:center; }
+    .bg { position:fixed; inset:0; background-image:url("ships-bridge.jpg"); background-size:cover; background-position:center; z-index:0; transform:scale(1.12); will-change:transform; transition:transform .35s ease-out; pointer-events:none; }
+    /* Moving TV static, same as the sign-in page: opacity .38, 240px grain,
+       baseFrequency 0.25. z-index 1 puts it over the Ships Bridge background
+       (z-index 0) and UNDERNEATH everything else on the hub — terminal box
+       (z-index 2), radio footer (z-index 3), ticker (z-index 4), palette
+       (z-index 10) — so it never covers any hub information. */
+
+    /* Mouse ripple, just over the content: small expanding rings that follow
+       the pointer (the water ripple she likes from the test-signin-water
+       page). pointer-events:none so it never blocks clicks. z-index sits
+       above the content layers and below the command palette. */
+    #nvRippleLayer { position:fixed; inset:0; z-index:5; pointer-events:none; overflow:hidden; }
+    .nv-ripple-ring { position:absolute; width:12px; height:12px; margin:-6px 0 0 -6px; border:1px solid var(--nv-accent-soft); border-radius:50%; pointer-events:none; animation:nv-ripple-expand .9s ease-out forwards; }
+    @keyframes nv-ripple-expand { 0% { transform:scale(1); opacity:.8; } 100% { transform:scale(8); opacity:0; } }
+    .static-top { position:fixed; inset:0; z-index:1; pointer-events:none; opacity:.38; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.25' numOctaves='3'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)'/%3E%3C/svg%3E"); }
+    main { position:relative; z-index:2; width:100%; max-width:560px; padding:32px; box-sizing:border-box; text-align:center; border:1px solid var(--nv-accent); border-radius:16px; background-color:rgba(15,9,27,.82); background-image:var(--nv-sheen); }
+    /* Hub layout: the main terminal box stays centred where it is. The
+       "Infinity6 Terminal" heading lives INSIDE the terminal box, as its
+       header (Nov 8, Jasmine's order) — no separate title box above it.
+       Sign out is NOT on the main page — it lives in the Command K palette. */
+    .hub-col { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:2; width:100%; max-width:560px; max-height:calc(100vh - 120px); overflow-y:auto; }
+    button { background-color:rgba(255,255,255,.06); background-image:linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,.03) 55%, rgba(255,255,255,0)); color:#f5f0ff; border:1px solid var(--nv-accent); border-radius:999px; box-shadow:0 0 10px rgba(99,102,241,.35), inset 0 1px 0 rgba(255,255,255,.22); box-shadow:0 0 10px color-mix(in srgb, var(--nv-accent) 45%, transparent), inset 0 1px 0 rgba(255,255,255,.22); padding:10px 18px; font-weight:700; cursor:pointer; }
+    a { color:var(--nv-accent-soft); }
+    .cursor-blink { display:inline-block; animation:nv-blink 1.2s steps(2,start) infinite; color:#ffffff; }
+    .commands-footer { position:fixed; bottom:8px; left:8px; right:8px; z-index:3; display:grid; grid-template-columns:1fr auto; gap:8px; height:32px; font-size:15px; border:1px solid var(--nv-accent); border-radius:16px; box-sizing:border-box; background-color:rgba(15,9,27,.82); background-image:var(--nv-sheen); }
+    .footer-cell { border:1px solid var(--nv-accent); border-radius:12px; background:rgba(255,255,255,.03); padding:0 10px; display:flex; align-items:center; justify-content:center; text-align:center; }
+    .commands-footer a { color:var(--nv-accent-soft); }
+    .commands-footer button { font-size:13px; height:28px; padding:2px 8px; }
+    .commands-footer .commands-icon-btn { background:transparent; border:0; padding:0; cursor:pointer; line-height:0; }
+    #stationSelect { background:rgba(255,255,255,.06); color:#f5f0ff; border:1px solid var(--nv-accent); border-radius:999px; font-family:inherit; font-size:13px; height:28px; padding:2px 8px; opacity:0; pointer-events:none; transition:opacity .18s ease; }
+    #radio:hover #stationSelect, #radio:focus-within #stationSelect { opacity:1; pointer-events:auto; }
+    #stationSelect option { color:#05010f; }
+    .commands-footer p { display:inline; margin:0 8px 0 0; }
+    /* Hub greeting (Nov 8, 2026, Jasmine's order): the terminal box heading
+       IS the greeting — "Greetings User" by default, "Greetings <username>"
+       when a username is saved. No display-name input or Save button on the
+       hub anymore; name editing lives in Settings only. */
+    /* "Infinity 6 Terminal" branding, bottom of the terminal box, small
+       (Nov 8, 2026): same system monospace stack, rendered clean at small size
+       — 13px, no glow, no shadow, modest tracking, antialiased. She likes
+       the digital font specifically when it is really small text. */
+    .nv-term-foot { padding:8px 12px; border-top:1px solid var(--nv-accent); text-align:right; font-size:13px; letter-spacing:1px; color:var(--nv-accent-soft); -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; text-rendering:optimizeLegibility; }
+    .palette-hint { font-size:13px; color:var(--nv-accent-soft); margin-top:18px; cursor:pointer; }
+    /* Hub terminal: a working command line for Neon Vigil content — control
+       the radio, load the games, list what's available with help. Same
+       terminal look as the rest of the hub: system monospace stack, 1px var(--nv-accent) border,
+       glass panel. The input has a hidden native caret and a
+       blinking underscore that follows behind the typed text, like the
+       name input and the game typing. */
+    /* Greeting heading, inside the terminal box as its header (Nov 8,
+       Jasmine's order) — "Greetings User" by default, "Greetings
+       <username>" when a username is saved. "Infinity 6 Terminal" moved
+       to the bottom of the box, small (.nv-term-foot). */
+    .nv-term-head { padding:10px 12px; border-bottom:1px solid var(--nv-accent); }
+    .nv-term-head h1 { margin:0; font-size:20px; }
+    .nv-term { margin-top:18px; border:1px solid var(--nv-accent); border-radius:12px; background-color:rgba(15,9,27,.82); background-image:var(--nv-sheen); text-align:left; }
+    .nv-term-out { min-height:60px; max-height:120px; overflow:auto; padding:10px 12px; font-size:16px; white-space:pre-wrap; word-break:break-word; }
+    .nv-term-out p { margin:0 0 4px; }
+    .nv-term-line { display:flex; align-items:center; gap:6px; border-top:1px solid var(--nv-accent); padding:10px 12px; }
+    .nv-term-prompt { color:var(--nv-accent-soft); }
+    #termInput { background:transparent; border:0; outline:none; caret-color:transparent; color:#f5f0ff; font-family:inherit; font-size:16px; padding:0; margin:0; width:1ch; min-width:1ch; flex:0 1 auto; }
+    @keyframes nv-blink { 50% { opacity:0; } }
+    #radioToggleBtn{width:28px;height:28px;padding:0;display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;background:rgba(255,255,255,.06);color:#f5f0ff;border:1px solid var(--nv-accent);border-radius:999px;cursor:pointer;box-shadow:none}#radioToggleBtn svg{width:14px;height:14px;display:block}
+    /* Terminal shader canvas (Nov 22, 2026): while shader mode is on, the
+       canvas takes the log viewport's place inside the terminal box. */
+    #termShaderCanvas { width:100%; height:140px; display:block; background:#000; }
+    #termShaderCanvas[hidden] { display:none; }
+    /* Prism state (Nov 22, 2026) — hub only this pass: the terminal box
+       and the footer slowly rotate hue. The page background (.bg) sits
+       outside both, so the ship stays put while the glass changes.
+       A sitewide version wants the accent variable itself rotated;
+       that is a follow-up, not this pass. */
+    html[data-prism="on"] .hub-col, html[data-prism="on"] .commands-footer { animation:nv-prism-spin 16s linear infinite; }
+    @keyframes nv-prism-spin { from { filter:hue-rotate(0deg); } to { filter:hue-rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { html[data-prism="on"] .hub-col, html[data-prism="on"] .commands-footer { animation:none; } }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./config.js"></script>
+</head>
+<body>
+  <div class="bg" aria-hidden="true"></div>
+  <div class="nv-wireframe" aria-hidden="true"></div>
+  <div class="static-top" aria-hidden="true"></div>
+  <div id="nvRippleLayer" aria-hidden="true"></div>
+  <div class="hub-col">
+  <main>
+    <div class="nv-term um-cascade" id="nvTerm">
+      <div class="nv-term-head"><h1 id="hubTitle">Greetings User</h1></div>
+      <div class="nv-term-out" id="termOutput"><p>Type 'help' for commands.</p></div>
+      <canvas id="termShaderCanvas" hidden aria-hidden="true"></canvas>
+      <div class="nv-term-line"><span class="nv-term-prompt">&gt;</span><input id="termInput" autocomplete="off" aria-label="Terminal command" spellcheck="false"><span class="cursor-blink">_</span></div>
+      <div class="nv-term-foot">Infinity 6 Terminal</div>
+    </div>
+    <audio id="radioAudio" src="sounds/neon-vigil-sound-bed-3-loop.wav" loop preload="none"></audio>
+    <p class="palette-hint" id="paletteHint" data-nv-commands>Press ⌘K for commands</p>
+  </main>
+  </div>
+  <div class="commands-footer"><span class="footer-cell"><span id="radio"><button type="button" id="radioToggleBtn" data-um-ripple aria-label="Play Sound Bed 3" title="Play Sound Bed 3"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg></button> <span class="nv-radio-wave" id="hubWave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span> <select id="stationSelect" aria-label="Radio station"><option value="0">Sound Bed 1</option><option value="1">Sound Bed 2</option><option value="2" selected>Sound Bed 3</option><option value="3">Atmospheric Haze</option></select></span></span><span class="footer-cell"><button type="button" id="commandsBtn" class="commands-icon-btn" data-um-ripple data-nv-commands aria-label="Commands" title="Commands (⌘K)"><svg width="28" height="28" viewBox="0 0 100 100" fill="none" stroke="#f5f0ff" stroke-width="3" aria-hidden="true"><circle cx="50" cy="50" r="10"/><circle cx="50" cy="50" r="26"/><circle cx="50" cy="50" r="42"/><ellipse cx="50" cy="50" rx="42" ry="16" transform="rotate(60 50 50)"/><ellipse cx="50" cy="50" rx="42" ry="16" transform="rotate(120 50 50)"/><circle cx="50" cy="8" r="4" fill="#f5f0ff" stroke="none"/><circle cx="86" cy="71" r="4" fill="#f5f0ff" stroke="none"/><circle cx="14" cy="71" r="4" fill="#f5f0ff" stroke="none"/><path d="M50 44v12M44 50h12" stroke-width="4"/></svg></button></span></div>
+  <script src="./auth.js"></script>
+  <script src="./ui-moments.js"></script>
+  <script src="./nv-ticker.js"></script>
+  <script src="./nv-commands.js"></script>
+  <script src="./nv-sprite.js"></script>
+  <script>
+    function savedName() { return localStorage.getItem('nv_display_name') || ''; }
+    function accountName(user) { return (user && user.user_metadata && user.user_metadata.display_name) ? user.user_metadata.display_name : ''; }
+    /* Hub greeting (Nov 8, 2026, Jasmine's order): "Greetings User" by
+       default, "Greetings <username>" when a username is saved. The
+       username comes from the same place Settings stores it — localStorage
+       'nv_display_name' first, then the account's display_name in
+       user_metadata — so removing the hub input/Save does not break the
+       lookup. If the account has a name the hub does not, it is cached
+       locally here too. No display-name input or Save button on the hub
+       anymore; name editing lives in Settings only. */
+    function updateGreeting(user) {
+      var name = savedName() || accountName(user);
+      if (name) { localStorage.setItem('nv_display_name', name); }
+      var greet = name ? 'Greetings ' + name : 'Greetings User';
+      var h = document.getElementById('hubTitle');
+      if (h && h.textContent !== greet) { typeHubTitle(greet); }
+    }
+
+    /* Hub greeting typewriter: the greeting types out the same way the game
+       types text — the game's DIALOGUE_CPS is 42 characters per second
+       (~24ms per character). The greeting is written out in the HTML so it
+       still reads with JS off; this replaces it with the typed version.
+       Reduced motion shows the full greeting at once. No blinking caret
+       here — the only blinking cursor on the hub is the terminal input's
+       (Nov 8, Jasmine's order). The typewriter is KEPT: it types the
+       greeting on load, and re-types it when the saved username arrives
+       after sign-in (see updateGreeting). */
+    var hubTitleTimer = null;
+    function typeHubTitle(full) {
+      var h = document.getElementById('hubTitle');
+      if (!h) return;
+      if (hubTitleTimer) { clearInterval(hubTitleTimer); hubTitleTimer = null; }
+      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        h.textContent = full;
+        return;
+      }
+      h.textContent = '';
+      var i = 0;
+      hubTitleTimer = setInterval(function () {
+        i++;
+        h.textContent = full.slice(0, i);
+        if (i >= full.length) { clearInterval(hubTitleTimer); hubTitleTimer = null; }
+      }, 1000 / 42);
+    }
+    typeHubTitle('Greetings User');
+
+    var radioStations = [
+      'sounds/neon-vigil-sound-bed-1-landing-workpage.wav',
+      'sounds/neon-vigil-sound-bed-2-practice-page.wav',
+      'sounds/neon-vigil-sound-bed-3-loop.wav',
+      'sounds/neon-vigil-theme-atmospheric-haze.mp3'
+    ];
+    /* The station list is rebuildable (Nov 22, 2026): a hidden fifth
+       entry exists only while its local state is on. It is never in
+       help, never in any listing — the select simply has one more
+       option on this device, for this user. It plays the Haze file
+       slowed a touch (see applyStationFx). */
+    var radioBaseStations = [
+      { name: 'Sound Bed 1', src: 'sounds/neon-vigil-sound-bed-1-landing-workpage.wav' },
+      { name: 'Sound Bed 2', src: 'sounds/neon-vigil-sound-bed-2-practice-page.wav' },
+      { name: 'Sound Bed 3', src: 'sounds/neon-vigil-sound-bed-3-loop.wav' },
+      { name: 'Atmospheric Haze', src: 'sounds/neon-vigil-theme-atmospheric-haze.mp3' }
+    ];
+    var radioHiddenStation = { name: 'Ghost Frequency', src: 'sounds/neon-vigil-theme-atmospheric-haze.mp3' };
+    function ghostStationOn() {
+      try { return localStorage.getItem('nv_secret_ghost') === 'on'; } catch (e) { return false; }
+    }
+    function rebuildStations() {
+      var list = radioBaseStations.slice();
+      if (ghostStationOn()) list.push(radioHiddenStation);
+      var keep = Number(stationSelect.value || 2);
+      if (keep >= list.length) keep = 2; /* Sound Bed 3, the hub default */
+      radioStations = list.map(function (s) { return s.src; });
+      stationSelect.innerHTML = '';
+      list.forEach(function (s, i) {
+        var o = document.createElement('option');
+        o.value = String(i);
+        o.textContent = s.name;
+        stationSelect.appendChild(o);
+      });
+      stationSelect.value = String(keep);
+      var wasPlaying = !radioAudio.paused;
+      radioAudio.src = radioStations[keep];
+      applyStationFx(keep);
+      if (wasPlaying) { radioAudio.play().catch(function () {}); }
+      syncRadioBtn();
+    }
+    /* The hidden station runs the Haze file at a lower pitch; every
+       listed station runs at natural speed. Loop is the audio
+       element's own attribute and applies to all of them. */
+    function applyStationFx(idx) {
+      var isHidden = ghostStationOn() && idx === radioBaseStations.length;
+      try { radioAudio.playbackRate = isHidden ? 0.82 : 1; } catch (e) {}
+    }
+    /* Radio + play button, unified: one icon-only play/stop button drives the
+       radio; the station picker next to it is the control to change station
+       (after sign-in, on the hub). Changing station while playing switches
+       what plays; while paused it just picks the next station. */
+    var radioAudio = document.getElementById('radioAudio');
+    var radioStarted = false;
+    var radioToggleBtn = document.getElementById('radioToggleBtn');
+    var stationSelect = document.getElementById('stationSelect');
+    var radioPlaySvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg>';
+    var radioStopSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12"/></svg>';
+    var hubWave = document.getElementById('hubWave');
+    function syncRadioBtn() {
+      var playing = !radioAudio.paused;
+      if (hubWave) hubWave.classList.toggle('playing', playing);
+      var name = stationSelect.options[stationSelect.selectedIndex].text;
+      radioToggleBtn.innerHTML = playing ? radioStopSvg : radioPlaySvg;
+      radioToggleBtn.setAttribute('aria-label', (playing ? 'Stop ' : 'Play ') + name);
+      radioToggleBtn.setAttribute('title', (playing ? 'Stop ' : 'Play ') + name);
+    }
+    function radioPlay() {
+      radioStarted = true;
+      radioAudio.play().catch(function () {});
+      syncRadioBtn();
+    }
+    function radioPause() { radioAudio.pause(); syncRadioBtn(); }
+    radioToggleBtn.addEventListener('click', function () {
+      if (radioAudio.paused) { radioPlay(); } else { radioPause(); }
+    });
+    stationSelect.addEventListener('change', function () {
+      var wasPlaying = !radioAudio.paused;
+      radioAudio.src = radioStations[Number(this.value)];
+      applyStationFx(Number(this.value));
+      if (wasPlaying) { radioAudio.play().catch(function () {}); }
+      syncRadioBtn();
+    });
+    /* Scroll over the radio cycles stations (Hex OS radio lock). */
+    document.getElementById('radio').addEventListener('wheel', function (e) {
+      e.preventDefault();
+      var dir = e.deltaY > 0 ? 1 : -1;
+      var next = (Number(stationSelect.value) + dir + radioStations.length) % radioStations.length;
+      stationSelect.value = String(next);
+      stationSelect.dispatchEvent(new Event('change'));
+    }, { passive: false });
+    radioAudio.addEventListener('play', syncRadioBtn);
+    radioAudio.addEventListener('pause', syncRadioBtn);
+    syncRadioBtn();
+
+    /* Select sound (Mouse Click 1): plays once when the user picks an option
+       that changes the page. Volume is a UI click, not looped. Kept here
+       for the post-login sound below; the Commands popup plays its own
+       copy from the shared module (nv-commands.js). */
+    var selectAudio = new Audio('sounds/neon-vigil-mouse-click-1.wav');
+    selectAudio.volume = 0.5;
+    function playSelect() { try { selectAudio.currentTime = 0; var p = selectAudio.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {} }
+    /* Post-login: the page changed from sign-in to hub, so the select sound
+       plays once. Browsers may block audio without a gesture after the
+       redirect, so if the first play is blocked it plays on the first
+       pointer tap instead. */
+    function playSelectAfterLogin() {
+      var p;
+      try { p = selectAudio.play(); } catch (e) { p = null; }
+      if (p && p.catch) {
+        p.catch(function () {
+          var once = function () { playSelect(); document.removeEventListener('pointerdown', once); };
+          document.addEventListener('pointerdown', once);
+        });
+      }
+    }
+
+    /* Hub terminal: a working command line for Neon Vigil content.
+       help — list the commands. radio play / radio stop — start/stop the
+       radio. radio station 1|2|3|4 (or radio 1|2|3|4) — switch station.
+       load <game> / open <game> — load a game: ikg, nv808, gridlog.
+       commands — open the Command K popup. clear — clear the terminal. */
+    var termOut = document.getElementById('termOutput');
+    var termInput = document.getElementById('termInput');
+    function termPrint(text) {
+      var p = document.createElement('p');
+      p.textContent = text;
+      termOut.appendChild(p);
+      while (termOut.children.length > 8) termOut.removeChild(termOut.firstChild);
+      termOut.scrollTop = termOut.scrollHeight;
+    }
+    function termSize() { termInput.style.width = Math.max(1, termInput.value.length + 1) + 'ch'; }
+    termInput.addEventListener('input', termSize);
+    termSize();
+    /* Audit fix Nov 8, 2026: game links stay inside the app shell — the
+       terminal routes to the same-origin shell wrappers (/gigas-garden/,
+       and the real Grid Log page (/gridlog/), never out to an
+       external URL or the Bible test page. Avatar Editor + IA Symbiont added
+       (Avatar Editor lives at /settings/avatar-editor/; the IA Symbiont
+       is its own page at /ia-symbiont/ — the symbiont is the pet). */
+    var termGames = {
+      'ikg': { label: 'iKG://GigasGarden.Construct', url: '/gigas-garden/' },
+      'iww': { label: 'iKG://GigasGarden.Construct', url: '/gigas-garden/' },
+      'gigas': { label: 'iKG://GigasGarden.Construct', url: '/gigas-garden/' },
+      'nv808': { label: 'NV_808', url: '/nv808/' },
+      'nv_808': { label: 'NV_808', url: '/nv808/' },
+      '808': { label: 'NV_808', url: '/nv808/' },
+      'gridlog': { label: 'NV_Gridlog', url: '/gridlog/' },
+      'grid': { label: 'NV_Gridlog', url: '/gridlog/' },
+      'avatar': { label: 'Avatar Editor', url: '/settings/avatar-editor/' },
+      'profile': { label: 'Profile', url: '/profile/' },
+      'editor': { label: 'Avatar Editor', url: '/settings/avatar-editor/' },
+      'pet': { label: 'IA Symbiont', url: '/ia-symbiont/' },
+      'petpal': { label: 'IA Symbiont', url: '/ia-symbiont/' },
+      'pigek': { label: 'IA Symbiont', url: '/ia-symbiont/' }
+    };
+    function termHelp() {
+      termPrint('Commands:');
+      termPrint('  radio play / radio stop — start or stop the radio');
+      termPrint('  radio station 1|2|3|4 — switch station (1 Bed 1, 2 Bed 2, 3 Bed 3, 4 Atmospheric Haze)');
+      termPrint('  load ikg | load nv808 | load gridlog — load a game');
+      termPrint('  load avatar — open the Avatar Editor');
+      termPrint('  load pet — open your IA Symbiont');
+      termPrint('  load profile — open your profile page');
+      termPrint('  commands — open the Command K popup');
+      termPrint('  shader — manifest a shader on this glass (shader off to leave)');
+      termPrint('  key — your own AI keys, kept in this browser only (key set anthropic | key set openai)');
+      termPrint('  ask <words> — ask the symbiont (needs your own key)');
+      termPrint('  clear — clear the terminal');
+    }
+    function termLoad(key) {
+      var g = termGames[key];
+      if (!g) { termPrint('Unknown game. Try: load ikg, load nv808, load gridlog, load avatar, load pet.'); return; }
+      termPrint('Loading ' + g.label + '…');
+      /* Loading a game changes the page, so the select sound plays once;
+         a short delay lets the click be heard before the page changes. */
+      playSelect();
+      setTimeout(function () { location.href = g.url; }, 200);
+    }
+    function termRun(raw) {
+      var cmd = raw.trim();
+      if (!cmd) return;
+      /* Key capture comes FIRST, before the echo: a pasted key is never
+         printed to the log, never echoed anywhere. The log shows only
+         bullets, and the input itself is masked while capturing. */
+      if (nvKeyCapture) {
+        termPrint('> •••');
+        var capProvider = nvKeyCapture;
+        nvKeyCapture = null;
+        termInput.type = 'text';
+        try { localStorage.setItem('nv_byok_' + capProvider, cmd); } catch (e) {}
+        termPrint('Stored in this browser only. It never goes to our servers.');
+        return;
+      }
+      termPrint('> ' + cmd);
+      var lower = cmd.toLowerCase().replace(/\s+/g, ' ');
+      /* The two whispered phrases. They are matched whole, answered
+         vaguely, and appear in no listing anywhere on this page. */
+      if (lower === 'prism protocol') { togglePrism(); return; }
+      if (lower === 'ghost frequency') { toggleGhost(); return; }
+      /* While shader mode is on, submissions are shader source (or the
+         few shader-mode words), not commands. */
+      if (shaderState.on) { shaderSubmit(cmd); return; }
+      var parts = cmd.toLowerCase().split(/\s+/);
+      if (parts[0] === 'help') { termHelp(); return; }
+      if (parts[0] === 'clear') { termOut.innerHTML = ''; return; }
+      if (parts[0] === 'commands') { if (window.NVCommands) window.NVCommands.open(); return; }
+      if (parts[0] === 'radio') {
+        if (parts[1] === 'play') { radioPlay(); termPrint('Radio: playing ' + stationSelect.options[stationSelect.selectedIndex].text + '.'); return; }
+        if (parts[1] === 'stop' || parts[1] === 'pause') { radioPause(); termPrint('Radio: stopped.'); return; }
+        var n = Number(parts[1] === 'station' ? parts[2] : parts[1]);
+        if (n >= 1 && n <= radioStations.length) {
+          var wasPlaying = !radioAudio.paused;
+          stationSelect.value = String(n - 1);
+          radioAudio.src = radioStations[n - 1];
+          applyStationFx(n - 1);
+          if (wasPlaying) { radioAudio.play().catch(function () {}); }
+          syncRadioBtn();
+          termPrint('Radio: station ' + n + ' — ' + stationSelect.options[stationSelect.selectedIndex].text + '.');
+          return;
+        }
+        termPrint('Radio: try radio play, radio stop, or radio station 1|2|3|4.');
+        return;
+      }
+      if (parts[0] === 'load' || parts[0] === 'open') { termLoad(parts.slice(1).join(' ').replace(/[\s_-]/g, '')); return; }
+      if (parts[0] === 'shader') { termShaderCmd(parts); return; }
+      if (parts[0] === 'key') { termKey(parts); return; }
+      if (parts[0] === 'ask') { termAsk(cmd.slice(3).trim()); return; }
+      termPrint('not found');
+    }
+    termInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); var v = termInput.value; termInput.value = ''; termSize(); termRun(v); }
+    });
+
+    /* ============ Terminal secrets, shaders, and keys (Nov 22, 2026) ============
+       Everything in this block is PRIVATE to this user on this device:
+       every state lives in localStorage only — nothing here talks to
+       our servers. The two whispered phrases are matched in termRun and
+       answered vaguely; they appear in no help text and no listing. */
+
+    /* --- The whispered phrases --- */
+    function togglePrism() {
+      var on = false;
+      try { on = localStorage.getItem('nv_secret_prism') === 'on'; } catch (e) {}
+      var next = !on;
+      try { localStorage.setItem('nv_secret_prism', next ? 'on' : 'off'); } catch (e) {}
+      if (next) { document.documentElement.setAttribute('data-prism', 'on'); termPrint('…okay. watch the colors.'); }
+      else { document.documentElement.removeAttribute('data-prism'); termPrint('…back to normal. mostly.'); }
+    }
+    function toggleGhost() {
+      var on = ghostStationOn();
+      try { localStorage.setItem('nv_secret_ghost', on ? 'off' : 'on'); } catch (e) {}
+      rebuildStations();
+      termPrint(on ? '…quieter now.' : '…okay. listen closer.');
+    }
+
+    /* --- Shader mode: WGSL only, never JS ---
+       The user supplies a fragment shader with this contract:
+         struct NVU { time: f32, res: vec2f };
+         @group(0) @binding(0) var<uniform> u: NVU;
+         @fragment fn main(@builtin(position) fc: vec4f) -> @location(0) vec4f
+       A built-in vertex stage draws one fullscreen triangle. No storage
+       buffers, no compute — the code can only paint this canvas. */
+    var shaderCanvas = document.getElementById('termShaderCanvas');
+    var shaderState = { on: false, buffer: '', device: null, ctx: null, format: null, pipeline: null, bindGroup: null, uniformBuf: null, raf: null, startT: 0 };
+    var NV_SHADER_VERTEX = [
+      '@vertex fn nv_vs(@builtin(vertex_index) i: u32) -> @builtin(position) vec4f {',
+      '  var p = array<vec2f, 3>(vec2f(-1.0, -1.0), vec2f(3.0, -1.0), vec2f(-1.0, 3.0));',
+      '  return vec4f(p[i], 0.0, 1.0);',
+      '}'
+    ].join('\n');
+    var NV_SHADER_STARTER = [
+      'struct NVU { time: f32, res: vec2f };',
+      '@group(0) @binding(0) var<uniform> u: NVU;',
+      '@fragment fn main(@builtin(position) fc: vec4f) -> @location(0) vec4f {',
+      '  let uv = fc.xy / u.res;',
+      '  let t = u.time * 0.35;',
+      '  var v = 0.0;',
+      '  v += sin((uv.x * 6.0 + t) + sin(uv.y * 4.0 - t) * 1.5);',
+      '  v += sin((uv.y * 8.0 - t * 1.3) + sin(uv.x * 3.0 + t) * 1.2);',
+      '  v += sin((uv.x + uv.y) * 5.0 + t);',
+      '  let a = 0.5 + 0.5 * sin(v * 1.6);',
+      '  let deep = vec3f(0.05, 0.03, 0.12);',
+      '  let glow = vec3f(0.42, 0.40, 1.00);',
+      '  let hot = vec3f(0.95, 0.45, 0.85);',
+      '  var col = mix(deep, glow, a);',
+      '  col = mix(col, hot, pow(a, 6.0) * 0.7);',
+      '  return vec4f(col, 1.0);',
+      '}'
+    ].join('\n');
+    function shaderShowCanvas() {
+      termOut.style.display = 'none';
+      shaderCanvas.hidden = false;
+      if (!shaderState.raf && shaderState.pipeline) {
+        if (!shaderState.startT) shaderState.startT = performance.now();
+        shaderState.raf = requestAnimationFrame(shaderFrame);
+      }
+    }
+    function shaderShowLog() {
+      shaderCanvas.hidden = true;
+      termOut.style.display = '';
+      if (shaderState.raf) { cancelAnimationFrame(shaderState.raf); shaderState.raf = null; }
+    }
+    function shaderOff() {
+      shaderState.on = false;
+      shaderState.buffer = '';
+      shaderShowLog();
+    }
+    function shaderFail(msg) {
+      shaderShowLog();
+      termPrint('shader error — ' + msg);
+    }
+    async function shaderCompile(src) {
+      try {
+        if (!shaderState.device) {
+          var adapter = await navigator.gpu.requestAdapter();
+          if (!adapter) { shaderState.on = false; shaderShowLog(); termPrint("this glass can't run shaders — WebGPU isn't available here."); return; }
+          shaderState.device = await adapter.requestDevice();
+          shaderState.ctx = shaderCanvas.getContext('webgpu');
+          if (!shaderState.ctx) { shaderState.on = false; shaderShowLog(); termPrint("this glass can't run shaders — WebGPU isn't available here."); return; }
+          shaderState.format = navigator.gpu.getPreferredCanvasFormat();
+          shaderState.uniformBuf = shaderState.device.createBuffer({ size: 16, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+        }
+        var device = shaderState.device;
+        var module = device.createShaderModule({ code: NV_SHADER_VERTEX + '\n' + src });
+        if (module.getCompilationInfo) {
+          var info = await module.getCompilationInfo();
+          var errs = (info.messages || []).filter(function (m) { return m.severity === 'error'; });
+          if (errs.length) {
+            var m0 = errs[0];
+            shaderFail(String(m0.message || 'compile failed').split('\n')[0] + (m0.lineNum ? ' (line ' + m0.lineNum + ')' : ''));
+            return;
+          }
+        }
+        var bgl = device.createBindGroupLayout({ entries: [{ binding: 0, visibility: (window.GPUShaderStage ? GPUShaderStage.FRAGMENT : 2), buffer: { type: 'uniform' } }] });
+        var layout = device.createPipelineLayout({ bindGroupLayouts: [bgl] });
+        var scoped = !!device.pushErrorScope;
+        if (scoped) device.pushErrorScope('validation');
+        var pipeline = device.createRenderPipeline({
+          layout: layout,
+          vertex: { module: module, entryPoint: 'nv_vs' },
+          fragment: { module: module, entryPoint: 'main', targets: [{ format: shaderState.format }] },
+          primitive: { topology: 'triangle-list' }
+        });
+        var vErr = scoped ? await device.popErrorScope() : null;
+        if (vErr) { shaderFail(String(vErr.message || 'validation failed').split('\n')[0]); return; }
+        shaderState.pipeline = pipeline;
+        shaderState.bindGroup = device.createBindGroup({ layout: bgl, entries: [{ binding: 0, resource: { buffer: shaderState.uniformBuf } }] });
+        shaderShowCanvas();
+      } catch (e) {
+        shaderFail((e && e.message) ? String(e.message).split('\n')[0] : 'something broke');
+      }
+    }
+    function shaderFrame() {
+      if (!shaderState.on || !shaderState.pipeline || shaderCanvas.hidden) { shaderState.raf = null; return; }
+      try {
+        var dpr = Math.min(2, window.devicePixelRatio || 1);
+        var w = Math.max(2, Math.floor(shaderCanvas.clientWidth * dpr));
+        var h = Math.max(2, Math.floor(shaderCanvas.clientHeight * dpr));
+        if (shaderCanvas.width !== w || shaderCanvas.height !== h) {
+          shaderCanvas.width = w; shaderCanvas.height = h;
+          shaderState.ctx.configure({ device: shaderState.device, format: shaderState.format, alphaMode: 'opaque' });
+        }
+        var data = new Float32Array([(performance.now() - shaderState.startT) / 1000, 0, w, h]);
+        shaderState.device.queue.writeBuffer(shaderState.uniformBuf, 0, data);
+        var encoder = shaderState.device.createCommandEncoder();
+        var view = shaderState.ctx.getCurrentTexture().createView();
+        var pass = encoder.beginRenderPass({ colorAttachments: [{ view: view, clearValue: { r: 0, g: 0, b: 0, a: 1 }, loadOp: 'clear', storeOp: 'store' }] });
+        pass.setPipeline(shaderState.pipeline);
+        pass.setBindGroup(0, shaderState.bindGroup);
+        pass.draw(3);
+        pass.end();
+        shaderState.device.queue.submit([encoder.finish()]);
+      } catch (e) { /* a lost device just stops the show; the log explains on the next compile */ }
+      shaderState.raf = requestAnimationFrame(shaderFrame);
+    }
+    function shaderSubmit(cmd) {
+      var lower = cmd.toLowerCase();
+      if (lower === 'shader off') { shaderOff(); termPrint('shader mode off.'); return; }
+      if (lower === 'run') {
+        if (!shaderState.buffer) { shaderShowLog(); termPrint('nothing to run yet — paste WGSL lines first.'); return; }
+        shaderCompile(shaderState.buffer);
+        return;
+      }
+      if (cmd.indexOf('@fragment') !== -1) { shaderState.buffer = cmd; shaderCompile(shaderState.buffer); return; }
+      shaderState.buffer = shaderState.buffer ? (shaderState.buffer + '\n' + cmd) : cmd;
+    }
+    function termShaderCmd(parts) {
+      if (parts[1] === 'off') {
+        if (shaderState.on) { shaderOff(); termPrint('shader mode off.'); }
+        else termPrint('shader mode is not on.');
+        return;
+      }
+      if (shaderState.on) { shaderShowLog(); termPrint("shader mode is already on — paste WGSL lines, 'run' to compile, 'shader off' to leave."); return; }
+      if (!navigator.gpu) { termPrint("this glass can't run shaders — WebGPU isn't available here."); return; }
+      shaderState.on = true;
+      shaderState.buffer = '';
+      termPrint('shader mode — the glass is listening. Paste WGSL lines, then run. shader off to leave.');
+      shaderCompile(NV_SHADER_STARTER);
+    }
+    /* Escape leaves shader mode before anything else on the page hears
+       it — capture phase, because the shared shell's Escape = back
+       listens in the bubble phase. Only while shader mode is on. */
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && shaderState.on) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        shaderOff();
+        termPrint('shader mode off.');
+      }
+    }, true);
+
+    /* --- Bring your own key: the terminal's private AI line --- */
+    var nvKeyCapture = null;
+    function byokGet(provider) {
+      try { return localStorage.getItem('nv_byok_' + provider) || ''; } catch (e) { return ''; }
+    }
+    function termKey(parts) {
+      var providers = ['anthropic', 'openai'];
+      if (parts.length === 1) {
+        providers.forEach(function (p) {
+          termPrint(p + (byokGet(p) ? ' — key stored (this browser only)' : ' — no key stored'));
+        });
+        termPrint("key set anthropic | key set openai | key clear <provider>");
+        return;
+      }
+      if (parts[1] === 'set' && providers.indexOf(parts[2]) !== -1) {
+        nvKeyCapture = parts[2];
+        termInput.type = 'password';
+        termPrint('Paste your ' + parts[2] + ' key, then Enter. It shows as bullets and stays in this browser only.');
+        return;
+      }
+      if (parts[1] === 'clear' && providers.indexOf(parts[2]) !== -1) {
+        try { localStorage.removeItem('nv_byok_' + parts[2]); } catch (e) {}
+        termPrint(parts[2] + ' key cleared from this browser.');
+        return;
+      }
+      termPrint("key: try 'key set anthropic', 'key set openai', or 'key clear anthropic'.");
+    }
+    var NV_ASK_SYSTEM = "You are the IA Symbiont aboard the Infinity 6, speaking through the hub terminal. Deadpan, funny, irreverent, a little unhinged; adult but never explicit. Answer in at most three short lines of plain text. No markdown, no lists.";
+    function askFail(msg) { termPrint('ask failed — ' + msg); }
+    async function termAsk(text) {
+      if (!text) { termPrint('ask what? — ask <words>'); return; }
+      var aKey = byokGet('anthropic');
+      var oKey = byokGet('openai');
+      if (!aKey && !oKey) {
+        termPrint("No key stored. The symbiont can only whisper with your own key — 'key set anthropic' or 'key set openai'.");
+        return;
+      }
+      try {
+        var reply = '';
+        if (aKey) {
+          var ra = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', 'x-api-key': aKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+            body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 300, system: NV_ASK_SYSTEM, messages: [{ role: 'user', content: text }] })
+          });
+          var da = await ra.json().catch(function () { return null; });
+          if (!ra.ok) { askFail((da && da.error && da.error.message) || ('HTTP ' + ra.status)); return; }
+          reply = ((da && da.content) || []).map(function (b) { return b.text || ''; }).join('');
+        } else {
+          var ro = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', 'authorization': 'Bearer ' + oKey },
+            body: JSON.stringify({ model: 'gpt-4o-mini', max_tokens: 300, messages: [{ role: 'system', content: NV_ASK_SYSTEM }, { role: 'user', content: text }] })
+          });
+          var dob = await ro.json().catch(function () { return null; });
+          if (!ro.ok) { askFail((dob && dob.error && dob.error.message) || ('HTTP ' + ro.status)); return; }
+          reply = (dob && dob.choices && dob.choices[0] && dob.choices[0].message && dob.choices[0].message.content) || '';
+        }
+        if (!reply) { askFail('empty answer'); return; }
+        reply.split('\n').forEach(function (line) { if (line) termPrint(line); });
+      } catch (e) {
+        askFail((e && e.message) || 'network error');
+      }
+    }
+
+    /* Init: re-apply this device's secret states from before. */
+    (function () {
+      try { if (localStorage.getItem('nv_secret_prism') === 'on') document.documentElement.setAttribute('data-prism', 'on'); } catch (e) {}
+      if (ghostStationOn()) rebuildStations();
+    })();
+
+    requireSession('index.html').then(function (user) {
+      if (user) { updateGreeting(user); playSelectAfterLogin(); }
+    });
+    /* Sign out is palette-only now (Command K) — no Sign out button on the
+       main hub page. The 'Sign out' palette command calls signOut(). */
+  </script>
+<script>
+/* iPhone-style background shift: gyro tilt on phone, mouse parallax on desktop. */
+(function () {
+  var bg = document.querySelector('.bg');
+  if (!bg) return;
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  var tx = 0, ty = 0, cx = 0, cy = 0, raf = null;
+  function apply() {
+    cx += (tx - cx) * 0.12; cy += (ty - cy) * 0.12;
+    bg.style.transform = 'translate3d(' + cx.toFixed(2) + 'px,' + cy.toFixed(2) + 'px,0) scale(1.12)';
+    if (Math.abs(tx - cx) > 0.05 || Math.abs(ty - cy) > 0.05) { raf = requestAnimationFrame(apply); } else { raf = null; }
+  }
+  function kick() { if (!raf) raf = requestAnimationFrame(apply); }
+  window.addEventListener('pointermove', function (e) {
+    if (e.pointerType === 'touch') return;
+    var nx = (e.clientX / window.innerWidth - 0.5) * 2;
+    var ny = (e.clientY / window.innerHeight - 0.5) * 2;
+    tx = -nx * 16; ty = -ny * 12; kick();
+  }, { passive: true });
+  function onTilt(e) {
+    if (e.gamma == null || e.beta == null) return;
+    var g = Math.max(-45, Math.min(45, e.gamma));
+    var b = Math.max(-30, Math.min(30, (e.beta || 0) - 45));
+    tx = -(g / 45) * 16; ty = -(b / 30) * 12; kick();
+  }
+  var motionAsked = false;
+  function enableMotion() {
+    if (motionAsked) return; motionAsked = true;
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+      DeviceOrientationEvent.requestPermission().then(function (r) { if (r === 'granted') window.addEventListener('deviceorientation', onTilt); }).catch(function () {});
+    } else {
+      window.addEventListener('deviceorientation', onTilt);
+    }
+  }
+  document.addEventListener('pointerdown', enableMotion, { once: true });
+  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission !== 'function') {
+    window.addEventListener('deviceorientation', onTilt);
+  }
+})();
+</script>
+<script>
+/* Moving TV static over the hub background, underneath everything — same
+   grain as the sign-in page, repositioned every 90ms so it shimmers. */
+(function () {
+  var topStatic = document.querySelector('.static-top');
+  if (!topStatic) return;
+  setInterval(function () {
+    var sx = Math.floor(Math.random() * 240), sy = Math.floor(Math.random() * 240);
+    topStatic.style.backgroundPosition = sx + 'px ' + sy + 'px';
+  }, 90);
+})();
+</script>
+
+<script>
+/* Mouse ripple just over the content: a small expanding ring trails the
+   pointer as it moves, and a tap spawns one too (touch). pointer-events:none,
+   so it never blocks hub links, radio, Commands, or sign-in buttons. */
+(function () {
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  var layer = document.getElementById('nvRippleLayer');
+  if (!layer) return;
+  var lastSpawn = 0;
+  function spawn(x, y) {
+    var now = Date.now();
+    if (now - lastSpawn < 120) return; /* one ring per 120ms while moving */
+    lastSpawn = now;
+    var ring = document.createElement('div');
+    ring.className = 'nv-ripple-ring';
+    ring.style.left = x + 'px';
+    ring.style.top = y + 'px';
+    layer.appendChild(ring);
+    setTimeout(function () { if (ring.parentNode) ring.parentNode.removeChild(ring); }, 950);
+  }
+  var lastDragBuzz = 0;
+  function buzz(ms) {
+    /* Haptics: Android Chrome only — iOS Safari has no navigator.vibrate. */
+    if (!('vibrate' in navigator)) return;
+    try { navigator.vibrate(ms); } catch (e) {}
+  }
+  window.addEventListener('pointermove', function (e) {
+    if (e.pointerType === 'touch') {
+      /* Drag across the ripple (touch): longer, harder buzz, throttled so a
+         long drag buzzes in pulses instead of one endless vibration. */
+      spawn(e.clientX, e.clientY);
+      var now = Date.now();
+      if (now - lastDragBuzz >= 300) { lastDragBuzz = now; buzz(60); }
+      return;
+    }
+    spawn(e.clientX, e.clientY);
+  }, { passive: true });
+  window.addEventListener('pointerdown', function (e) {
+    if (e.pointerType === 'touch') { spawn(e.clientX, e.clientY); buzz(10); } /* tap: tiny buzz */
+  }, { passive: true });
+})();
+</script>
+<script src="./nv-shell.js"></script>
+</body>
+</html>

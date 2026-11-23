@@ -1,0 +1,133 @@
+/* Symbiont sprite styles.
+   The hexagon is the sprite's current form. Infinity 6 Terminal / Hex OS:
+   colors follow the IA Symbiont pick through the theme variables
+   (var(--nv-accent, #8a8a99), var(--nv-accent-soft, #c9c9d4)).
+   No words or text on the hexagon. Particles belong to the sprite ONLY —
+   they appear only in its materialization, nowhere else in the UI. */
+
+/* The invisible container: transparent, fixed, 120x120, no background, no
+   border. It is the thing that roams and is dragged; the hexagon is the
+   visible shape inside it. pointer-events:none so the container never
+   blocks page clicks — only the hexagon itself captures input. */
+.nv-sprite {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 120px;
+  height: 120px;
+  background: transparent;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  z-index: 8; /* above hub content (z 2), below the Commands palette (z 10) */
+  pointer-events: none;
+  transition: opacity 0.45s ease; /* the PROWL pattern dims the sprite while it sits still — fade, never snap */
+}
+
+/* The hexagon itself: the only part that takes pointer input. */
+.nv-sprite-hex {
+  width: 96px;
+  height: 96px;
+  margin: 12px;
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none; /* pointer drag must not scroll the page on touch */
+  will-change: transform;
+}
+.nv-sprite-hex svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.nv-sprite-grabbing {
+  cursor: grabbing;
+}
+.nv-sprite-hex:focus-visible {
+  outline: 1px solid var(--nv-accent-soft, #c9c9d4);
+  outline-offset: 2px;
+}
+
+/* Materialization: the sprite forms from particles at its fixed spawn
+   spot — a tight local cloud of sigil-colored particles converges in
+   place while the hexagon resolves out of it. The sprite stands still
+   while forming; roaming starts only once it has fully formed. */
+.nv-sprite-particles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.nv-sprite-particle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  margin: -2.5px 0 0 -2.5px;
+  border-radius: 50%;
+  background: var(--nv-accent, #6366f1);
+  opacity: 0;
+  animation: nv-sprite-converge .95s ease-in forwards;
+}
+@keyframes nv-sprite-converge {
+  0% { transform: translate(var(--dx), var(--dy)) scale(1); opacity: 0; }
+  18% { opacity: 1; }
+  100% { transform: translate(0, 0) scale(.4); opacity: 0; }
+}
+.nv-sprite-hex.nv-sprite-forming {
+  animation: nv-sprite-resolve .95s ease-out;
+}
+@keyframes nv-sprite-resolve {
+  0% { opacity: 0; transform: scale(.55); }
+  55% { opacity: .55; }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* Wiggle: a quick side-to-side shake, like a pet. */
+@keyframes nv-sprite-wiggle {
+  0% { transform: rotate(0deg); }
+  20% { transform: rotate(-9deg); }
+  45% { transform: rotate(8deg); }
+  65% { transform: rotate(-5deg); }
+  85% { transform: rotate(3deg); }
+  100% { transform: rotate(0deg); }
+}
+.nv-sprite-wiggle {
+  animation: nv-sprite-wiggle 0.6s ease-in-out;
+}
+
+/* 1s hop-bob, same timing as Baby Pigek's locked hop-bob. */
+@keyframes nv-sprite-hop {
+  0% { transform: translateY(0); }
+  30% { transform: translateY(-26px); }
+  60% { transform: translateY(0); }
+  80% { transform: translateY(-10px); }
+  100% { transform: translateY(0); }
+}
+.nv-sprite-hop {
+  animation: nv-sprite-hop 1s ease-in-out;
+}
+
+/* SWEEP edge pulse: one soft swell when the sprite pauses at a screen
+   edge before crossing back. On the svg layer so it never fights the
+   hexagon's rotation transform or the container's hop. */
+@keyframes nv-sprite-pulse {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+.nv-sprite-pulse svg {
+  animation: nv-sprite-pulse 0.9s ease-out;
+}
+
+/* Reduced motion: the sprite sits still (no roaming, no hop, no spin,
+   no particle materialization — it simply appears) but stays draggable
+   and clickable. */
+@media (prefers-reduced-motion: reduce) {
+  .nv-sprite-hop,
+  .nv-sprite-wiggle,
+  .nv-sprite-pulse svg,
+  .nv-sprite-particle,
+  .nv-sprite-hex.nv-sprite-forming {
+    animation: none;
+  }
+}

@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NV-TV — Infinity6 Terminal</title>
+
+  <link rel="stylesheet" href="./nv-commands.css">
+  <link rel="stylesheet" href="./nv-terminal-tokens.css">
+  <link rel="stylesheet" href="./nv-ticker.css">
+  <link rel="stylesheet" href="./nv-symbiont-theme.css">
+  <script src="./nv-symbiont-theme.js"></script>
+  <style>
+    /* NV-TV — MINIMAL pass (User's spec, Nov 22, 2026): ticker OK · options
+       button + ⌘K OK · NO radio (this page carries a .commands-footer, so the
+       shell does not inject its dock) · play glyph lives on the center of the
+       glass · screen takes the majority of the page · glare on the glass ·
+       power on/off · lights out kills the light OUTSIDE the video only ·
+       CAST via Remote Playback / AirPlay · the page ground is the IKG —
+       the Intergalactic Kyber Grid wireframe lines. */
+    body { background:#05010f; color:#f5f0ff; font-family: ui-monospace, Menlo, monospace; font-size: 18px; margin:0; min-height:100vh; overflow:hidden; }
+    body.lights-out { background:#000; }
+
+    /* IKG — wireframe grid lines: wall + perspective floor */
+    .ikg-wall { position:fixed; inset:0; z-index:0; pointer-events:none;
+      background-image:linear-gradient(rgba(129,140,248,.13) 1px, transparent 1px), linear-gradient(90deg, rgba(129,140,248,.13) 1px, transparent 1px);
+      background-size:44px 44px;
+      -webkit-mask-image:radial-gradient(90% 80% at 50% 42%, #000 30%, transparent 78%);
+      mask-image:radial-gradient(90% 80% at 50% 42%, #000 30%, transparent 78%); }
+    .ikg-floor { position:fixed; left:-30%; right:-30%; bottom:-6%; height:52%; z-index:0; pointer-events:none;
+      background-image:linear-gradient(rgba(34,211,238,.16) 1px, transparent 1px), linear-gradient(90deg, rgba(129,140,248,.16) 1px, transparent 1px);
+      background-size:44px 44px;
+      transform:perspective(430px) rotateX(63deg); transform-origin:bottom center;
+      border-top:1px solid rgba(34,211,238,.4);
+      -webkit-mask-image:linear-gradient(180deg, transparent, #000 22%, #000 78%, transparent);
+      mask-image:linear-gradient(180deg, transparent, #000 22%, #000 78%, transparent); }
+    body.lights-out .ikg-wall, body.lights-out .ikg-floor { opacity:.22; }
+
+    /* the glass — majority of the page, between the shell head and the footer */
+    .nvtv-stage { position:fixed; inset:0; z-index:1; padding:96px 42px 88px; box-sizing:border-box; }
+    .glass { position:relative; width:100%; height:100%; background:#000; border:1px solid #3d3663; border-radius:14px; overflow:hidden; box-shadow:0 0 60px rgba(80,70,180,.18); }
+    body.lights-out .glass { box-shadow:none; border-color:#241d45; }
+    .glass video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; background:#000; transition:opacity .25s ease; }
+    body.off .glass video { opacity:0; }
+    .glare { position:absolute; inset:0; z-index:4; pointer-events:none; border-radius:inherit;
+      background:
+        linear-gradient(112deg, rgba(255,255,255,.16) 0%, rgba(255,255,255,.045) 26%, rgba(255,255,255,0) 46%),
+        radial-gradient(130% 60% at 50% -12%, rgba(200,205,255,.13), rgba(200,205,255,0) 60%);
+      box-shadow: inset 0 0 90px rgba(0,0,0,.5); }
+    body.off .glare { background:linear-gradient(112deg, rgba(255,255,255,.07) 0%, rgba(255,255,255,.015) 30%, rgba(255,255,255,0) 50%); box-shadow: inset 0 0 90px rgba(0,0,0,.8); }
+    .glass-static { position:absolute; inset:0; z-index:3; pointer-events:none; opacity:.16; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.25' numOctaves='3'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)'/%3E%3C/svg%3E"); transition:opacity .12s linear; }
+    .glass-static.burst { opacity:.92; }
+    body.off .glass-static { opacity:0; }
+
+    /* center play / power glyph — just the glyph, glow on the glyph itself */
+    .center-btn { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:6; width:96px; height:96px;
+      border:0; background:transparent; color:#ffffff; font-size:44px; cursor:pointer;
+      filter:drop-shadow(0 0 14px rgba(129,140,248,.95)) drop-shadow(0 0 40px rgba(129,140,248,.5));
+      display:flex; align-items:center; justify-content:center; transition:opacity .25s ease, filter .2s; opacity:0; pointer-events:none; }
+    .center-btn .glyph { position:relative; z-index:1; line-height:1; }
+    .center-btn .glyph svg { width:56px; height:56px; display:block; }
+    .center-btn .glyph[hidden] { display:none; }
+    .center-btn.show { opacity:1; pointer-events:auto; }
+    .center-btn:hover { filter:drop-shadow(0 0 20px rgba(129,140,248,1)) drop-shadow(0 0 56px rgba(129,140,248,.65)); }
+
+    /* TV footer — carries .commands-footer so the shell dock (with its radio)
+       stays off this page. Options opens the ⌘K palette. */
+    .commands-footer { position:fixed; left:0; right:0; bottom:0; z-index:5; display:flex; align-items:center; gap:14px;
+      padding:9px 14px; border-top:1px solid #241d45; background:rgba(5,1,15,.92); font-size:12.5px; }
+    .commands-footer button { border:1px solid #3d3663; background:#0d0a1a; color:#cfc9ec; border-radius:99px; padding:6px 14px; font:inherit; font-size:12.5px; cursor:pointer; letter-spacing:.06em; }
+    .commands-footer button:hover { border-color:#818cf8; color:#fff; }
+    .commands-footer .hint { opacity:.55; font-size:11.5px; }
+    .commands-footer .now { flex:1; text-align:center; opacity:.65; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .commands-footer .power[aria-pressed="true"] { border-color:#22c55e; color:#86efac; }
+    .commands-footer .lights[aria-pressed="true"] { border-color:#facc15; color:#fde68a; }
+  </style>
+  <script src="./config.js"></script>
+</head>
+<body class="nv-shell-page">
+  <div class="ikg-wall" aria-hidden="true"></div>
+  <div class="ikg-floor" aria-hidden="true"></div>
+
+  <div class="nvtv-stage">
+    <div class="glass" id="glass">
+      <video id="nvtvVideo" muted playsinline preload="auto" x-webkit-airplay="allow"></video>
+      <div class="glass-static" id="glassStatic" aria-hidden="true"></div>
+      <div class="glare" aria-hidden="true"></div>
+      <button class="center-btn play" id="centerBtn" aria-label="Play or pause"><span class="glyph glyph-play"><svg viewBox="0 0 100 100" aria-hidden="true"><polygon points="35.3,28 79.3,50 35.3,72" fill="#ffffff"/></svg></span><span class="glyph glyph-power" hidden>⏻</span></button>
+    </div>
+  </div>
+
+  <footer class="commands-footer">
+    <button id="optsBtn" aria-label="Options">≡ OPTIONS</button>
+    <span class="hint">Press command K for options</span>
+    <span class="now" id="nowPlaying">NV-TV</span>
+    <button class="lights" id="lightsBtn" aria-pressed="false" aria-label="Turn out the lights">LIGHTS OUT</button>
+    <button id="castBtn" aria-label="Cast media">CAST</button>
+    <button class="power" id="powerBtn" aria-pressed="true" aria-label="Power">⏻ POWER</button>
+  </footer>
+
+  <!-- App Shell: standard header wrapper + ticker + Cmd+K. The shell dock is
+       NOT injected on this page because the footer above carries
+       .commands-footer — so no radio lives on NV-TV. -->
+  <header class="nv-shell-head">
+    <a class="nv-shell-head-title" href="/hub.html">Infinity6 Terminal</a>
+    <span class="nv-shell-head-page">NV-TV</span>
+    <span class="nv-shell-head-hint" data-nv-commands>Press ⌘K for commands</span>
+  </header>
+  <script src="./auth.js"></script>
+  <script src="./nv-ticker.js"></script>
+  <script src="./nv-commands.js"></script>
+  <script src="./nv-shell.js"></script>
+  <script>
+    /* NV-TV is a hub page: send anyone who is not signed in back to sign-in. */
+    requireSession('index.html');
+  </script>
+  <script>
+    /* NV-TV minimal player — clip rotation with static bursts, center glyph,
+       power, lights out, cast. (Nov 22, 2026) */
+    (function () {
+      var CLIPS = [
+        { mp4: 'nv-tv-clips/video-cyphr-flow-mouth.mp4', webm: 'nv-tv-clips/video-cyphr-flow-mouth.webm', label: 'Cyphr — Flow mouth' },
+        { mp4: 'nv-tv-clips/clip-01.mp4', webm: 'nv-tv-clips/clip-01.webm', label: 'Cyphr — Flow clip 01 (Keyframe 1)' },
+        { mp4: 'nv-tv-clips/clip-02.mp4', webm: 'nv-tv-clips/clip-02.webm', label: 'Cyphr — Flow clip 02' },
+        { mp4: 'nv-tv-clips/clip-03.mp4', webm: 'nv-tv-clips/clip-03.webm', label: 'Cyphr — Flow clip 03' }
+      ];
+      function clipSrc(c) {
+        var mp4ok = video.canPlayType && video.canPlayType('video/mp4; codecs="avc1.42E01E"') !== '';
+        return mp4ok ? c.mp4 : c.webm;
+      }
+      var video = document.getElementById('nvtvVideo');
+      var glassStatic = document.getElementById('glassStatic');
+      var now = document.getElementById('nowPlaying');
+      var centerBtn = document.getElementById('centerBtn');
+      var powerBtn = document.getElementById('powerBtn');
+      var lightsBtn = document.getElementById('lightsBtn');
+      var idx = 1, bursting = false, power = true;
+
+      /* static grain shimmer — same grain as the hub, repositioned every 90ms */
+      setInterval(function () {
+        var sx = Math.floor(Math.random() * 240), sy = Math.floor(Math.random() * 240);
+        glassStatic.style.backgroundPosition = sx + 'px ' + sy + 'px';
+      }, 90);
+
+      function showBtn(glyph) {
+        var isPlay = glyph === 'play';
+        centerBtn.querySelector('.glyph-play').hidden = !isPlay;
+        centerBtn.querySelector('.glyph-power').hidden = isPlay;
+        centerBtn.classList.toggle('play', isPlay);
+        centerBtn.classList.add('show');
+      }
+      function hideBtn() { centerBtn.classList.remove('show'); }
+      function burstThen(next) {
+        if (bursting) return; bursting = true;
+        glassStatic.classList.add('burst');
+        setTimeout(function () { glassStatic.classList.remove('burst'); bursting = false; next(); }, 600);
+      }
+      function play(i) {
+        idx = ((i % CLIPS.length) + CLIPS.length) % CLIPS.length;
+        video.src = clipSrc(CLIPS[idx]);
+        now.textContent = 'Now on the glass: ' + CLIPS[idx].label;
+        if (!power) return;
+        var p = video.play();
+        if (p && p.catch) p.catch(function () { showBtn('play'); });
+        else hideBtn();
+      }
+      function setPower(on) {
+        power = on;
+        document.body.classList.toggle('off', !on);
+        powerBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        if (!on) { video.pause(); showBtn('power'); now.textContent = 'NV-TV · OFF'; }
+        else { burstThen(function () { play(idx); }); }
+      }
+      centerBtn.addEventListener('click', function () {
+        if (!power) { setPower(true); return; }
+        if (video.paused) { video.play(); hideBtn(); } else { video.pause(); showBtn('play'); }
+      });
+      document.getElementById('glass').addEventListener('click', function (e) {
+        if (e.target === centerBtn || !power) return;
+        if (video.paused) { video.play(); hideBtn(); } else { video.pause(); showBtn('play'); }
+      });
+      powerBtn.addEventListener('click', function () { setPower(!power); });
+      video.addEventListener('play', hideBtn);
+      video.addEventListener('pause', function () { if (power) showBtn('play'); });
+      video.addEventListener('ended', function () { burstThen(function () { play(idx + 1); }); });
+      video.addEventListener('error', function () { if (power) burstThen(function () { play(idx + 1); }); }, true);
+
+      /* lights out — kills the light outside the video only */
+      function setLights(out) {
+        document.body.classList.toggle('lights-out', out);
+        lightsBtn.setAttribute('aria-pressed', out ? 'true' : 'false');
+        lightsBtn.textContent = out ? 'LIGHTS ON' : 'LIGHTS OUT';
+      }
+      lightsBtn.addEventListener('click', function () { setLights(!document.body.classList.contains('lights-out')); });
+
+      /* cast — Remote Playback API (Chrome/Android) or AirPlay picker (Safari/iOS) */
+      var castNoteTimer = null;
+      function castNote(msg) {
+        now.textContent = msg;
+        clearTimeout(castNoteTimer);
+        castNoteTimer = setTimeout(function () { now.textContent = power ? 'Now on the glass: ' + CLIPS[idx].label : 'NV-TV · OFF'; }, 4200);
+      }
+      document.getElementById('castBtn').addEventListener('click', function () {
+        if (video.remote && typeof video.remote.prompt === 'function') {
+          video.remote.prompt().then(function () { castNote('Casting: ' + CLIPS[idx].label); })
+            .catch(function () { castNote('No cast target picked — the picker closed or no device answered.'); });
+        } else if (typeof video.webkitShowPlaybackTargetPicker === 'function') {
+          video.webkitShowPlaybackTargetPicker();
+        } else {
+          castNote('Casting is not available in this browser.');
+        }
+      });
+
+      /* options — the ⌘K palette */
+      document.getElementById('optsBtn').addEventListener('click', function () {
+        if (window.NVCommands && typeof window.NVCommands.open === 'function') window.NVCommands.open();
+      });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === ' ' && e.target === document.body) { e.preventDefault(); centerBtn.click(); }
+        if (e.key.toLowerCase() === 'l' && !e.metaKey && !e.ctrlKey) setLights(!document.body.classList.contains('lights-out'));
+      });
+
+      play(idx);
+    })();
+  </script>
+</body>
+</html>
