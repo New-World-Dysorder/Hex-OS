@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Profile — Neon Vigil</title>
+  
+  <link rel="stylesheet" href="../nv-terminal-tokens.css">
+  <link rel="stylesheet" href="../nv-ticker.css">
+  <link rel="stylesheet" href="../nv-commands.css">
+  <link rel="stylesheet" href="../nv-sprite.css">
+  <link rel="stylesheet" href="../nv-symbiont-theme.css">
+  <script src="../nv-symbiont-theme.js"></script>
+  <style>
+    /* Profile — the player's profile page (Nov 9, 2026). Populated from
+       the profile the player set in the Profile Editor (localStorage +
+       Supabase user_metadata): picture, username, display name, pronouns,
+       bio, and their own IA Symbiont. */
+    body { background:#050508; color:#f5f0ff; font-family:ui-monospace, Menlo, monospace; font-size:18px; margin:0; }
+    main { position:relative; z-index:2; max-width:720px; margin:0 auto; padding:0 16px 16px; }
+    .card { border:1px solid var(--nv-accent); border-radius:16px; background-color:rgba(15,9,27,.85); background-image:var(--nv-sheen); padding:28px; }
+    h1 { margin:8px 0; }
+    h2 { color:var(--nv-accent-soft); margin:32px 0 8px; }
+    a { color:var(--nv-accent-soft); }
+    .note { color:var(--nv-accent-soft); }
+    .profile-head { display:flex; gap:20px; align-items:flex-start; margin:16px 0; }
+    .profile-pic { width:120px; height:120px; border:1px solid var(--nv-accent); object-fit:cover; display:block; flex:none; }
+    .profile-pic-blank { width:120px; height:120px; border:1px solid var(--nv-accent); display:block; flex:none; box-sizing:border-box; }
+    .profile-names { min-width:0; }
+    .profile-display { font-size:28px; }
+    .profile-user { color:var(--nv-accent-soft); font-size:20px; }
+    .profile-pronouns { color:var(--nv-accent-soft); font-size:18px; margin-top:4px; }
+    .profile-bio { color:#f5f0ff; white-space:pre-wrap; margin:16px 0; }
+    
+    
+    .profile-meta { color:var(--nv-accent-soft); margin:8px 0; }
+    .profile-meta strong { color:var(--nv-accent-soft); font-weight:normal; }
+    .back { margin-top:28px; } .back a { display:inline-block; background:color-mix(in srgb, var(--nv-accent) 20%, transparent); color:var(--nv-accent-deep) !important; border:1px solid var(--nv-accent); border-radius:999px; padding:10px 18px; font-weight:700; position:relative; overflow:hidden; box-shadow:0 0 12px color-mix(in srgb, var(--nv-accent) 45%, transparent), inset 0 1px 0 rgba(255,255,255,.45), inset 0 -6px 12px rgba(255,255,255,.08); transition:transform .18s ease, box-shadow .18s ease; text-decoration:none; } .back a::before { content:""; position:absolute; inset:0; border-radius:inherit; background:linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,255,255,.12) 45%, rgba(255,255,255,0) 60%); pointer-events:none; } .back a::after { content:""; position:absolute; top:0; bottom:0; left:-70%; width:45%; background:linear-gradient(100deg, transparent, rgba(255,255,255,.55), transparent); transform:skewX(-18deg); transition:left .45s ease; pointer-events:none; } .back a:hover, .back a:focus-visible { transform:translateY(-2px); box-shadow:0 6px 18px color-mix(in srgb, var(--nv-accent) 55%, transparent), 0 0 22px color-mix(in srgb, var(--nv-accent) 60%, transparent), inset 0 1px 0 rgba(255,255,255,.55); } .back a:hover::after, .back a:focus-visible::after { left:120%; } .back a:active { transform:translateY(1px) scale(.93, .87); box-shadow:0 0 10px color-mix(in srgb, var(--nv-accent) 50%, transparent), inset 0 1px 0 rgba(255,255,255,.45); } .back a:focus-visible { outline:2px solid var(--nv-accent-soft); outline-offset:2px; }
+  </style>
+  <script src="../config.js"></script>
+</head>
+<body class="nv-shell-page">
+  <header class="nv-shell-head">
+    <a class="nv-shell-head-title" href="/hub.html">Infinity6 Terminal</a>
+    <span class="nv-shell-head-page">Profile</span>
+    <span class="nv-shell-head-hint" data-nv-commands>Press ⌘K for commands</span>
+  </header>
+  <main>
+    <div class="card">
+      <h1>Profile</h1>
+      <div class="profile-head">
+        <span id="profilePic"></span>
+        <div class="profile-names">
+          <div class="profile-display" id="profileDisplay">—</div>
+          <div class="profile-pronouns" id="profilePronouns"></div>
+        </div>
+      </div>
+      <p class="profile-bio" id="profileBio"></p>
+      
+      
+      <p class="profile-meta" id="profileSymbiont"></p>
+      <p class="note" id="profileEmpty" hidden>No profile set yet — <a href="/settings/profile-editor/">set it up in the Profile Editor</a>.</p>
+      <p class="back"><a href="/settings/profile-editor/">Edit profile</a> · <a href="/hub.html">Back to hub</a></p>
+    </div>
+  </main>
+  <script src="../nv-ticker.js"></script>
+  <script src="../auth.js"></script>
+  <script src="../nv-commands.js"></script>
+  <script src="../nv-sprite.js"></script>
+  <script src="../nv-shell.js"></script>
+  <script>
+  /* Profile page — reads the player's profile from localStorage first
+     (fast, what the Profile Editor saves), then hydrates from the
+     Supabase account (user_metadata) when local is empty. */
+  (function () {
+    function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+    function get(k) { return localStorage.getItem(k) || ''; } function avatarUrl() { return get('nv_avatar_url') || get('nv_provider_avatar_url') || ''; } function render() { var username = get('nv_display_name'); var pronouns = get('nv_pronouns'); var bio = get('nv_bio'); var symBase = get('nv_symbiont_base'); var symName = get('nv_symbiont_name'); var symGender = get('nv_symbiont_gender'); 
+      var pic = document.getElementById('profilePic');
+      var url = avatarUrl();
+      pic.innerHTML = url
+        ? '<img class="profile-pic" src="' + esc(url) + '" alt="Profile picture">'
+        : '<span class="profile-pic-blank" role="img" aria-label="No profile picture"></span>';
+
+      document.getElementById('profileDisplay').textContent = username || '—';
+      document.getElementById('profilePronouns').textContent = pronouns || '';
+      document.getElementById('profileBio').textContent = bio || '';
+      
+      var symParts = [];
+      if (symBase) symParts.push(symBase.charAt(0).toUpperCase() + symBase.slice(1));
+      if (symName) symParts.push(symName);
+      if (symGender) symParts.push(symGender);
+      document.getElementById('profileSymbiont').innerHTML = symParts.length
+        ? '<strong>IA Symbiont:</strong> ' + esc(symParts.join(' · '))
+        : '';
+
+      
+
+      var hasAny = username || bio || symBase || url;
+      document.getElementById('profileEmpty').hidden = !!hasAny;
+    }
+    render();
+    /* Hydrate from the account when local is empty, then re-render. */
+    try {
+      var client = (typeof getClient === 'function') ? getClient() : null;
+      if (client) {
+        client.auth.getSession().then(function (res) {
+          var user = res && res.data && res.data.session && res.data.session.user;
+          if (!user) return;
+          var md = user.user_metadata || {};
+          if (!get('nv_display_name') && md.display_name) localStorage.setItem('nv_display_name', md.display_name);
+          if (!get('nv_pronouns') && md.pronouns) localStorage.setItem('nv_pronouns', md.pronouns);
+          if (!get('nv_bio') && md.bio) localStorage.setItem('nv_bio', md.bio);
+                              if (!get('nv_symbiont_base') && md.symbiont_base) localStorage.setItem('nv_symbiont_base', md.symbiont_base);
+          if (!get('nv_symbiont_name') && md.symbiont_name) localStorage.setItem('nv_symbiont_name', md.symbiont_name);
+          if (!get('nv_symbiont_gender') && md.symbiont_gender) localStorage.setItem('nv_symbiont_gender', md.symbiont_gender);
+          if (!get('nv_avatar_url') && md.avatar_url) localStorage.setItem('nv_avatar_url', md.avatar_url);
+          if (!get('nv_provider_avatar_url') && md.avatar_url) localStorage.setItem('nv_provider_avatar_url', md.avatar_url);
+          render();
+        }).catch(function () {});
+      }
+    } catch (e) {}
+  })();
+  </script>
+</body>
+</html>
