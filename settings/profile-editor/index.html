@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Profile Editor — Settings — Infinity6 Terminal</title>
+  
+  <link rel="stylesheet" href="../../nv-commands.css">
+  <link rel="stylesheet" href="../../nv-terminal-tokens.css">
+  <link rel="stylesheet" href="../../nv-ticker.css">
+  <link rel="stylesheet" href="../../nv-type.css">
+  <link rel="stylesheet" href="../../nv-sprite.css">
+  <link rel="stylesheet" href="../../nv-symbiont-theme.css">
+  <script src="../../nv-symbiont-theme.js"></script>
+  <style>
+    body { background:#050508; color:#f5f0ff; font-family:ui-monospace, Menlo, monospace; font-size:18px; margin:0; min-height:100vh; display:grid; place-items:center; }
+    .bg { position:fixed; inset:0; background-image:url("../../ships-bridge.jpg"); background-size:cover; background-position:center; z-index:0; pointer-events:none; }
+    .static-top { position:fixed; inset:0; z-index:1; pointer-events:none; opacity:.38; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.25' numOctaves='3'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)'/%3E%3C/svg%3E"); }
+    main { position:relative; z-index:2; width:100%; max-width:560px; padding:32px; box-sizing:border-box; text-align:center; border:1px solid var(--nv-accent); border-radius:16px; background-color:rgba(15,9,27,.85); background-image:var(--nv-sheen); }
+    section { text-align:left; border-top:1px solid var(--nv-accent); margin-top:24px; padding-top:8px; }
+    section:first-of-type { border-top:0; margin-top:8px; }
+    h2 { font-size:20px; margin:12px 0; }
+    button { background:color-mix(in srgb, var(--nv-accent) 20%, transparent); color:var(--nv-accent-deep) !important; border:1px solid var(--nv-accent); border-radius:999px; padding:10px 18px; font-weight:700; cursor:pointer; font-family:inherit; font-size:18px; position:relative; overflow:hidden; box-shadow:0 0 12px color-mix(in srgb, var(--nv-accent) 45%, transparent), inset 0 1px 0 rgba(255,255,255,.45), inset 0 -6px 12px rgba(255,255,255,.08); transition:transform .18s ease, box-shadow .18s ease; }
+    button.selected { background:var(--nv-accent); } button::before { content:""; position:absolute; inset:0; border-radius:inherit; background:linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,255,255,.12) 45%, rgba(255,255,255,0) 60%); pointer-events:none; } button::after { content:""; position:absolute; top:0; bottom:0; left:-70%; width:45%; background:linear-gradient(100deg, transparent, rgba(255,255,255,.55), transparent); transform:skewX(-18deg); transition:left .45s ease; pointer-events:none; } button:hover, button:focus-visible { transform:translateY(-2px); box-shadow:0 6px 18px color-mix(in srgb, var(--nv-accent) 55%, transparent), 0 0 22px color-mix(in srgb, var(--nv-accent) 60%, transparent), inset 0 1px 0 rgba(255,255,255,.55); } button:hover::after, button:focus-visible::after { left:120%; } button:active { transform:translateY(1px) scale(.93, .87); box-shadow:0 0 10px color-mix(in srgb, var(--nv-accent) 50%, transparent), inset 0 1px 0 rgba(255,255,255,.45); } button:focus-visible { outline:2px solid var(--nv-accent-soft); outline-offset:2px; }
+    a { color:var(--nv-accent-soft); }
+    .cursor-blink { display:inline-block; animation:nv-blink 1.2s steps(2,start) infinite; color:#ffffff; }
+    #who { display:grid; grid-template-columns:auto 1fr; gap:4px 8px; text-align:left; max-width:340px; margin:0 auto; }
+    .user-label { grid-column:1; }
+    .name-cell { grid-column:2; white-space:nowrap; }
+    .save-cell { grid-column:2; }
+    @keyframes nv-blink { 50% { opacity:0; } }
+    .palette-hint { font-size:13px; color:var(--nv-accent-soft); margin-top:18px; cursor:pointer; } .identity-line { font-size:13px; color:var(--nv-accent-soft); margin:6px 0 0; } .icon-btn { width:44px; height:44px; min-width:44px; padding:0; display:inline-flex; align-items:center; justify-content:center; font-size:22px; line-height:1; } .icon-btn svg { width:22px; height:22px; display:block; fill:currentColor; position:relative; z-index:1; } .pronounBtn[hidden] { display:none !important; } .save-msg { font-size:14px; color:var(--nv-accent-soft); margin:8px 0 0; min-height:1em; } .save-row { display:flex; align-items:center; gap:12px; margin-top:24px; }
+    .avatar-current { width:96px; height:96px; border:1px solid var(--nv-accent); object-fit:cover; display:block; margin:8px 0; }
+    .avatar-blank { width:96px; height:96px; border:1px solid var(--nv-accent); display:block; margin:8px 0; box-sizing:border-box; }
+    .choice-row { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0; }
+    .avatar-note { color:var(--nv-accent-soft); }
+    #avatarFile { font-family:inherit; font-size:16px; color:#f5f0ff; }
+    #avatarPreview { width:96px; height:96px; border:1px solid var(--nv-accent); object-fit:cover; display:block; margin:8px 0; }
+    /* Symbiont base readout (Phase 2, Nov 13, 2026): the locked
+       skill set for the picked base — four number skills totalling
+       24, plus the Default mode stamp, plus Defense, a standalone
+       fifth stat (Nov 20, 2026 lock, NOT part of the 24):
+       Hexa 7, Cyphr 3, Helix 5, Warden 9. Same table as the IA
+       Symbiont page. */
+    #baseReadout { margin:12px 0 4px; }
+    #baseReadout:empty { display:none; }
+    .skill-title { font-size:18px; letter-spacing:.1em; text-transform:uppercase; margin:0 0 8px; }
+    .skill-row { display:flex; align-items:center; gap:10px; margin:5px 0; }
+    .skill-name { flex:0 0 150px; }
+    .skill-bar { flex:1; height:10px; border:1px solid var(--nv-accent); border-radius:999px; overflow:hidden; }
+    .skill-fill { display:block; height:100%; background:var(--nv-accent); }
+    .skill-num { flex:0 0 24px; text-align:right; }
+    .skill-mode { margin:10px 0 4px; }
+    .skill-mode .mode-stamp { letter-spacing:.14em; text-transform:uppercase; color:var(--nv-accent-soft); }
+    .skill-det { margin:4px 0 0; color:var(--nv-accent-soft); font-size:15px; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../config.js"></script>
+</head>
+<body class="nv-shell-page">
+  <div class="bg" aria-hidden="true"></div>
+  <div class="static-top" aria-hidden="true"></div>
+  <main>
+    <h1>Profile Editor</h1>
+    <p><a href="../index.html">Back to Settings</a> · <a href="/hub.html">Back to hub</a></p>
+
+    <section aria-label="Profile picture">
+      <h2>Profile picture</h2>
+      <div id="avatarCurrent"></div>
+      <div class="choice-row">
+        <button type="button" id="choiceProviderBtn">Use provider photo</button>
+        <button type="button" id="choiceUploadBtn">Upload your own</button>
+        <button type="button" id="choiceBlankBtn">Blank</button>
+      </div>
+      <div id="uploadRow" hidden>
+        <input type="file" id="avatarFile" accept="image/*" aria-label="Upload your own profile picture">
+        <p class="avatar-note">No mature content in pictures.</p>
+        <img id="avatarPreview" alt="Preview of your chosen profile picture" hidden>
+      </div>
+      <p id="avatarStatus" aria-live="polite"></p>
+      
+    </section>
+
+    <section aria-label="Username">
+      <h2>Username</h2>
+      <p class="note">Your username is your identity everywhere — the game, chat, and your Symbiont calls you by it. There is one name, and this is it.</p>
+      <p id="who">Checking your sign-in…</p> <p class="identity-line">your username is your identity in Neon Vigil</p>
+    </section>
+
+    <section aria-label="Pronouns">
+      <h2>Pronouns</h2>
+      <div class="choice-row">
+        <button type="button" class="pronounBtn" data-pronouns="he/him">He/Him</button>
+        <button type="button" class="pronounBtn" data-pronouns="she/her">She/Her</button>
+        <button type="button" class="pronounBtn" data-pronouns="they/them">They/Them</button>
+        <button type="button" class="pronounBtn" data-pronouns="neo">Neo</button>
+      </div>
+    </section>
+
+    <section aria-label="Bio">
+      <h2>Bio</h2>
+      <textarea id="bioInput" class="nv-type-area" maxlength="140" rows="3" aria-label="Bio" placeholder="140 characters max"></textarea><span class="nv-type-cursor">_</span>
+      <p><span id="bioCount">0</span>/140</p>
+      
+    </section>
+
+    
+
+    
+
+    <section aria-label="Your Symbiont">
+      <h2>Your Symbiont</h2>
+      <p class="note">Your own symbiont — not Hexa or Cyphr themselves. Name and gender are yours to pick, editable later.</p>
+      <div class="choice-row" role="group" aria-label="Symbiont base">
+        <button type="button" class="baseBtn" data-base="hexa">Hexa · cyan</button>
+        <button type="button" class="baseBtn" data-base="cyphr">Cyphr · indigo</button>
+        <button type="button" class="baseBtn" data-base="helix">Helix · pink</button>
+        <button type="button" class="baseBtn" data-base="warden">Warden · green</button>
+      </div>
+      <div id="baseReadout"></div>
+      <p><input id="symbiontNameInput" class="nv-type" maxlength="40" aria-label="Symbiont name" autocomplete="off" placeholder="Symbiont name" spellcheck="false"><span class="nv-type-cursor">_</span></p>
+      <p><input id="symbiontGenderInput" class="nv-type" maxlength="40" aria-label="Symbiont gender" autocomplete="off" placeholder="Symbiont gender" spellcheck="false"><span class="nv-type-cursor">_</span></p>
+      
+    </section>
+
+    <div class="save-row"><button type="button" id="saveAllBtn" class="icon-btn" aria-label="Save profile" title="Save profile"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg></button><span class="save-msg" id="saveMsg" role="status" aria-live="polite"></span></div> <p class="palette-hint" data-nv-commands>Press ⌘K for commands</p>
+  </main>
+
+  <script src="../../auth.js"></script>
+  <script src="../../nv-commands.js"></script>
+  <script src="../../nv-shell.js"></script>
+  <script src="../../nv-ticker.js"></script>
+  <script src="../../nv-sprite.js"></script>
+  <script>
+    function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+    /* Error states (Nov 22, 2026): an account save that fails —
+       updateUser resolving with an error, or the promise
+       rejecting — used to be swallowed silently here. Now it
+       surfaces on the page's inline save surface (#saveMsg) and
+       as an error toast. Throttled so one Save click (which can
+       fan out to several saveToAccount calls) raises one signal.
+       Success behavior and messages are unchanged. */
+    var lastSaveFailAt = 0;
+    function surfaceSaveFailure() {
+      var now = Date.now();
+      if (now - lastSaveFailAt < 1500) return;
+      lastSaveFailAt = now;
+      var msg = document.getElementById('saveMsg');
+      if (msg) { msg.textContent = 'Save failed — check your connection and try again.'; }
+      if (window.NVToast) NVToast.error('Save failed — try again');
+    }
+    /* Unsaved-changes guard (Nov 22, 2026): every account save
+       is tracked in accountSavePromises so the guard's Save
+       path can await the fan-out from one Save click and tell
+       success from failure. The promise resolves true/false;
+       failure still surfaces exactly as before (surfaceSaveFailure).
+       With no client, the localStorage writes in the callers
+       are the save — resolve true, as the page always has. */
+    var accountSavePromises = [];
+    function saveToAccount(data) {
+      try {
+        var c = (typeof getClient === 'function') ? getClient() : null;
+        if (!c) return Promise.resolve(true);
+        var p = c.auth.updateUser({ data: data }).then(function (res) {
+          if (res && res.error) { surfaceSaveFailure(); return false; }
+          return true;
+        }).catch(function () { surfaceSaveFailure(); return false; });
+        accountSavePromises.push(p);
+        return p;
+      } catch (e) { surfaceSaveFailure(); return Promise.resolve(false); }
+    }
+
+    var currentUser = null;
+
+    /* ---- Profile picture ---- */
+    var avatarChoice = localStorage.getItem('nv_avatar_choice') || '';
+    var avatarCache = localStorage.getItem('nv_avatar_url') || '';
+    var providerAvatar = localStorage.getItem('nv_provider_avatar_url') || '';
+    var chosenFile = null;
+
+    function providerPhotoUrl(user) {
+      return (user && user.user_metadata && user.user_metadata.avatar_url) ? user.user_metadata.avatar_url : '';
+    }
+    function currentAvatarUrl() {
+      if (avatarChoice === 'blank') return '';
+      if (avatarChoice === 'upload') return avatarCache;
+      if (avatarChoice === 'provider') return providerAvatar;
+      return providerAvatar || avatarCache;
+    }
+    function renderAvatarCurrent() {
+      var url = currentAvatarUrl();
+      var box = document.getElementById('avatarCurrent');
+      if (url) {
+        box.innerHTML = '<img class="avatar-current" src="' + esc(url) + '" alt="Your profile picture">';
+      } else {
+        box.innerHTML = '<span class="avatar-blank" role="img" aria-label="No profile picture"></span>';
+      }
+    }
+    function markAvatarChoice(choice) {
+      avatarChoice = choice;
+      document.getElementById('choiceProviderBtn').classList.toggle('selected', choice === 'provider');
+      document.getElementById('choiceUploadBtn').classList.toggle('selected', choice === 'upload');
+      document.getElementById('choiceBlankBtn').classList.toggle('selected', choice === 'blank');
+      document.getElementById('uploadRow').hidden = (choice !== 'upload');
+      renderAvatarCurrent();
+    }
+    /* Unsaved-changes guard (Nov 22, 2026): avatar picks are
+       STAGED — markAvatarChoice only changes the UI; the choice
+       (and any chosen file) is persisted by saveAvatarNow() on
+       Save. So a pick or a file choice is a dirty point. The
+       pronoun and symbiont-base buttons are NOT dirty points:
+       they write localStorage + the account the moment they
+       are clicked. */
+    var avatarDirty = false;
+    document.getElementById('choiceProviderBtn').addEventListener('click', function () { avatarDirty = true; markAvatarChoice('provider'); });
+    document.getElementById('choiceUploadBtn').addEventListener('click', function () { avatarDirty = true; markAvatarChoice('upload'); });
+    document.getElementById('choiceBlankBtn').addEventListener('click', function () { avatarDirty = true; markAvatarChoice('blank'); });
+    document.getElementById('avatarFile').addEventListener('change', function () {
+      avatarDirty = true;
+      var f = this.files && this.files[0];
+      chosenFile = f || null;
+      var prev = document.getElementById('avatarPreview');
+      if (!f) { prev.hidden = true; prev.removeAttribute('src'); return; }
+      var reader = new FileReader();
+      reader.onload = function () { prev.src = reader.result; prev.hidden = false; };
+      reader.readAsDataURL(f);
+    });
+    function saveAvatarNow() {
+      var status = document.getElementById('avatarStatus');
+      status.textContent = '';
+      if (avatarChoice === 'provider') {
+        var url = providerAvatar;
+        if (url) { localStorage.setItem('nv_avatar_url', url); saveToAccount({ avatar_url: url }); }
+        localStorage.setItem('nv_avatar_choice', 'provider');
+        renderAvatarCurrent();
+      } else if (avatarChoice === 'blank') {
+        localStorage.setItem('nv_avatar_choice', 'blank');
+        localStorage.removeItem('nv_avatar_url');
+        avatarCache = '';
+        saveToAccount({ avatar_url: null });
+        renderAvatarCurrent();
+      } else if (avatarChoice === 'upload') {
+        if (!chosenFile) {
+          if (avatarCache) {
+            localStorage.setItem('nv_avatar_choice', 'upload');
+            saveToAccount({ avatar_url: avatarCache });
+            renderAvatarCurrent();
+          }
+          return;
+        }
+        var client = (typeof getClient === 'function') ? getClient() : null;
+        if (!client) { status.textContent = 'Profile picture uploads need the storage bucket — it is being set up. Your provider photo or blank is saved for now.'; return; }
+        /* NOTE: the 'profile-pictures' Supabase Storage bucket does not exist
+           yet — it is still being set up. Until it exists, the upload below
+           errors and we fail gracefully without overwriting avatar_url.
+           Do not rename the bucket. */
+        var path = currentUser.id + '/' + Date.now() + '-' + chosenFile.name;
+        client.storage.from('profile-pictures').upload(path, chosenFile).then(function (res) {
+          if (res.error) throw res.error;
+          var pub = client.storage.from('profile-pictures').getPublicUrl(path);
+          var publicUrl = pub && pub.data && pub.data.publicUrl;
+          if (!publicUrl) throw new Error('no public URL');
+          avatarCache = publicUrl;
+          localStorage.setItem('nv_avatar_url', publicUrl);
+          localStorage.setItem('nv_avatar_choice', 'upload');
+          saveToAccount({ avatar_url: publicUrl });
+          renderAvatarCurrent();
+        }).catch(function () {
+          status.textContent = 'Profile picture uploads need the storage bucket — it is being set up. Your provider photo or blank is saved for now.';
+  });
+  }
+    }
+
+    /* ---- Username ---- */
+    function savedName() { return localStorage.getItem('nv_display_name') || ''; }
+    function saveNameToAccount(v) { saveToAccount({ display_name: v }); }
+    function accountName(user) { return (user && user.user_metadata && user.user_metadata.display_name) ? user.user_metadata.display_name : ''; }
+    function sizeInput() {
+      var inp = document.getElementById('nameInput');
+      if (inp) { inp.style.width = Math.max(1, inp.value.length + 1) + 'ch'; }
+    }
+    function showEdit(prefill) {
+      document.getElementById('who').innerHTML = '<span class="user-label">User:</span> <span class="name-cell"><input id="nameInput" class="nv-type" maxlength="60" aria-label="Username (required)" autocomplete="off" spellcheck="false" required aria-required="true"><span class="cursor-blink">_</span></span> <button id="cancelNameBtn" class="icon-btn" aria-label="Cancel" title="Cancel">✕</button>';
+      var inp = document.getElementById('nameInput');
+      inp.value = prefill || '';
+      sizeInput();
+      inp.addEventListener('input', sizeInput);
+      inp.focus();
+      document.getElementById('cancelNameBtn').addEventListener('click', function () { renderName(); });
+    }
+    function renderName(user) {
+      var name = savedName() || accountName(user);
+      if (name) { localStorage.setItem('nv_display_name', name); }
+      if (name) {
+        document.getElementById('who').innerHTML = '<span class="user-label">User:</span> <span class="name-cell">' + esc(name) + '<span class="cursor-blink">_</span></span> <span class="save-cell"><button id="editNameBtn" class="icon-btn" aria-label="Change name" title="Change name">✎</button></span>';
+        document.getElementById('editNameBtn').addEventListener('click', function () { showEdit(name); });
+        
+      } else {
+        showEdit('');
+      }
+    }
+
+    /* ---- Inline typing: size each .nv-type input to its text ---- */
+    function nvTypeSize(inp) {
+      if (!inp) return;
+      inp.style.width = Math.max(1, (inp.value || inp.placeholder || '').length + 1) + 'ch';
+    }
+    Array.prototype.forEach.call(document.querySelectorAll('.nv-type'), function (inp) {
+      nvTypeSize(inp);
+      inp.addEventListener('input', function () { nvTypeSize(inp); });
+    });
+
+    /* ---- Pronouns ---- */
+    function markPronouns(p) {
+      Array.prototype.forEach.call(document.querySelectorAll('.pronounBtn'), function (b) {
+        var chosen = b.getAttribute('data-pronouns') === p; b.classList.toggle('selected', chosen); b.hidden = !!p && !chosen;
+      });
+    }
+    Array.prototype.forEach.call(document.querySelectorAll('.pronounBtn'), function (b) {
+      b.addEventListener('click', function () {
+        var p = b.getAttribute('data-pronouns'); if (b.classList.contains('selected') && document.querySelector('.pronounBtn[hidden]')) { Array.prototype.forEach.call(document.querySelectorAll('.pronounBtn'), function (x) { x.hidden = false; }); return; }
+        markPronouns(p);
+        localStorage.setItem('nv_pronouns', p);
+        saveToAccount({ pronouns: p });
+      });
+    });
+
+    /* ---- Bio: 140 characters max, 3 lines max ---- */
+    var bioInput = document.getElementById('bioInput');
+    function updateBioCount() {
+      var c = document.getElementById('bioCount');
+      if (c && bioInput) c.textContent = String(bioInput.value.length);
+    }
+    if (bioInput) {
+      bioInput.value = localStorage.getItem('nv_bio') || '';
+      updateBioCount();
+      bioInput.addEventListener('input', function () {
+        /* Enforce 3 lines max. */
+        var lines = bioInput.value.split('\n');
+        if (lines.length > 3) { bioInput.value = lines.slice(0, 3).join('\n'); }
+        updateBioCount();
+      });
+      var saveBioNow = function () {
+        localStorage.setItem('nv_bio', bioInput.value);
+        saveToAccount({ bio: bioInput.value }); };
+    }
+
+    
+
+     
+
+    /* ---- Symbiont name + gender ---- */
+    var symName = document.getElementById('symbiontNameInput');
+    var symGender = document.getElementById('symbiontGenderInput');
+    if (symName) symName.value = localStorage.getItem('nv_symbiont_name') || '';
+    if (symGender) symGender.value = localStorage.getItem('nv_symbiont_gender') || '';
+    function saveSymbiontNow() {
+      if (symName) { localStorage.setItem('nv_symbiont_name', symName.value.trim()); }
+      if (symGender) { localStorage.setItem('nv_symbiont_gender', symGender.value.trim()); }
+      saveToAccount({ symbiont_name: symName ? symName.value.trim() : '', symbiont_gender: symGender ? symGender.value.trim() : '' }); }
+
+    /* ---- Symbiont base (Phase 2, Nov 13, 2026) ----
+       Same pick as the IA Symbiont page: localStorage
+       'nv_symbiont_base' ('hexa' / 'cyphr' / 'helix' / 'warden'),
+       applied live by nv-symbiont-theme.js, and mirrored to the
+       account as symbiont_base (the Profile page already hydrates
+       that field back into localStorage). A click saves at once,
+       like the pronoun buttons above. The green base is the
+       player's own Warden-base fork, shown with a plain label —
+       no powers or domains are listed for any base. */
+    var SKILLS = {
+      hexa:   { name: 'Hexa',   color: 'cyan',   power: 5, scan: 9, speed: 6, det: 4, def: 7, mode: 'FAST THINKING' },
+      cyphr:  { name: 'Cyphr',  color: 'indigo', power: 6, scan: 8, speed: 7, det: 3, def: 3, mode: 'DEEP LEARNING' },
+      helix:  { name: 'Helix',  color: 'pink',   power: 5, scan: 5, speed: 9, det: 5, def: 5, mode: 'FAST' },
+      warden: { name: 'Warden', color: 'green',  power: 7, scan: 5, speed: 4, det: 8, def: 9, mode: 'DEEP RESEARCH' }
+    };
+    var baseReadoutEl = document.getElementById('baseReadout');
+    function skillRow(label, v) {
+      return '<div class="skill-row"><span class="skill-name">' + label + '</span>' +
+        '<span class="skill-bar"><span class="skill-fill" style="width:' + (v * 10) + '%"></span></span>' +
+        '<span class="skill-num">' + v + '</span></div>';
+    }
+    function renderBaseReadout(base) {
+      if (!baseReadoutEl) return;
+      var s = SKILLS[base];
+      if (!s) { baseReadoutEl.innerHTML = ''; return; }
+      baseReadoutEl.innerHTML =
+        '<p class="skill-title">' + s.name + ' — ' + s.color + '</p>' +
+        skillRow('Power', s.power) +
+        skillRow('Grid Scan Radius', s.scan) +
+        skillRow('Speed Boost', s.speed) +
+        skillRow('Detectability', s.det) +
+        skillRow('Defense', s.def) +
+        '<p class="skill-mode">Default mode: <span class="mode-stamp">' + s.mode + '</span></p>' +
+        '<p class="skill-det">Detectability: high = easy to spot on radar/GPS, low = stealthy.</p>';
+    }
+    function markBase(base) {
+      Array.prototype.forEach.call(document.querySelectorAll('.baseBtn'), function (b) {
+        b.classList.toggle('selected', b.getAttribute('data-base') === base);
+      });
+      renderBaseReadout(base);
+    }
+    Array.prototype.forEach.call(document.querySelectorAll('.baseBtn'), function (b) {
+      b.addEventListener('click', function () {
+        var base = b.getAttribute('data-base');
+        markBase(base);
+        localStorage.setItem('nv_symbiont_base', base);
+        saveToAccount({ symbiont_base: base });
+        /* Recolor the whole system to the pick right now. */
+        try { if (window.NVSymbiontTheme) window.NVSymbiontTheme.apply(); } catch (e) {}
+      });
+    });
+    markBase(localStorage.getItem('nv_symbiont_base') || '');
+
+    function saveAllProfile() { var msg = document.getElementById('saveMsg'); var nameInput = document.getElementById('nameInput'); if (nameInput) { var v = nameInput.value.trim(); if (!v) { if (msg) { msg.textContent = 'Enter a username before saving — your name can’t be empty.'; } if (window.NVToast) NVToast.show('Username required'); nameInput.focus(); return; } localStorage.setItem('nv_display_name', v); saveNameToAccount(v); } saveAvatarNow(); saveBioNow(); saveSymbiontNow(); renderName(); if (msg) { msg.textContent = 'Profile saved.'; } if (window.NVToast) NVToast.show('Saved'); }
+    /* Unsaved-changes guard (Nov 22, 2026): text dirtiness is
+       COMPUTED — a field is dirty while its current value
+       differs from the saved localStorage value, so reverting
+       or cancelling a field cleans it with no flag bookkeeping.
+       The name field only exists while editing; when it is not
+       on the page, the saved name stands. Avatar staging uses
+       the avatarDirty flag above. */
+    function profileTextDirty() {
+      var ni = document.getElementById('nameInput');
+      if (ni && ni.value.trim() !== savedName()) return true;
+      if (bioInput && bioInput.value !== (localStorage.getItem('nv_bio') || '')) return true;
+      if (symName && symName.value.trim() !== (localStorage.getItem('nv_symbiont_name') || '')) return true;
+      if (symGender && symGender.value.trim() !== (localStorage.getItem('nv_symbiont_gender') || '')) return true;
+      return false;
+    }
+    function profileIsDirty() { return avatarDirty || profileTextDirty(); }
+    /* The guard's Save: run the same save the button runs, then
+       settle from what the code actually signals — the tracked
+       account-save promises, plus the username-required early
+       return (its message in #saveMsg is the signal; saveAllProfile
+       itself returns nothing). Limitation: saveAvatarNow's storage
+       upload promise is not tracked here (its failure is the
+       graceful bucket message in #avatarStatus, pre-existing),
+       and saveAllProfile prints "Profile saved." synchronously
+       before the account promises settle — if one then fails,
+       surfaceSaveFailure overwrites #saveMsg and this wrapper
+       reports failure to the guard, which stays on the page. */
+    function saveAllProfileAsync() {
+      accountSavePromises = [];
+      saveAllProfile();
+      var msg = document.getElementById('saveMsg');
+      if (msg && msg.textContent.indexOf('Enter a username') === 0) return Promise.resolve(false);
+      var pending = accountSavePromises.slice();
+      if (!pending.length) { avatarDirty = false; return Promise.resolve(true); }
+      return Promise.all(pending).then(function (results) {
+        var ok = results.every(function (r) { return !!r; });
+        if (ok) avatarDirty = false;
+        return ok;
+      });
+    }
+    document.getElementById('saveAllBtn').addEventListener('click', function () {
+      saveAllProfileAsync();
+    });
+    if (window.NVGuard) {
+      NVGuard.register({
+        isDirty: profileIsDirty,
+        save: saveAllProfileAsync,
+        clearDirty: function () { avatarDirty = false; }
+      });
+    }
+    requireSession('/index.html').then(function (user) {
+      if (!user) return;
+      currentUser = user;
+      var prov = providerPhotoUrl(user);
+      if (prov && avatarChoice !== 'upload') { providerAvatar = prov; localStorage.setItem('nv_provider_avatar_url', prov); }
+      if (!avatarChoice) {
+        markAvatarChoice(providerAvatar ? 'provider' : 'blank');
+      } else {
+        markAvatarChoice(avatarChoice);
+      }
+      renderName(user);
+      /* Hydrate the newer profile fields from the account when local is empty. */
+      var md = user.user_metadata || {};
+      if (!localStorage.getItem('nv_pronouns') && md.pronouns) { localStorage.setItem('nv_pronouns', md.pronouns); }
+      if (!localStorage.getItem('nv_bio') && md.bio) { localStorage.setItem('nv_bio', md.bio); }
+      
+      
+      if (!localStorage.getItem('nv_symbiont_name') && md.symbiont_name) { localStorage.setItem('nv_symbiont_name', md.symbiont_name); }
+      if (!localStorage.getItem('nv_symbiont_gender') && md.symbiont_gender) { localStorage.setItem('nv_symbiont_gender', md.symbiont_gender); }
+      if (!localStorage.getItem('nv_symbiont_base') && md.symbiont_base) { localStorage.setItem('nv_symbiont_base', md.symbiont_base); }
+      markPronouns(localStorage.getItem('nv_pronouns') || '');
+      if (bioInput) { bioInput.value = localStorage.getItem('nv_bio') || ''; updateBioCount(); }
+      
+      
+      
+      if (symName) { symName.value = localStorage.getItem('nv_symbiont_name') || ''; }
+      if (symGender) { symGender.value = localStorage.getItem('nv_symbiont_gender') || ''; }
+      markBase(localStorage.getItem('nv_symbiont_base') || '');
+      try { if (window.NVSymbiontTheme) window.NVSymbiontTheme.apply(); } catch (e) {}
+    });
+  </script>
+<script>
+/* Moving TV static over the Profile Editor background, underneath everything — same
+   grain as the hub, repositioned every 90ms so it shimmers. */
+(function () {
+  var topStatic = document.querySelector('.static-top');
+  if (!topStatic) return;
+  setInterval(function () {
+    var sx = Math.floor(Math.random() * 240), sy = Math.floor(Math.random() * 240);
+    topStatic.style.backgroundPosition = sx + 'px ' + sy + 'px';
+  }, 90);
+})();
+</script>
+</body>
+</html>
