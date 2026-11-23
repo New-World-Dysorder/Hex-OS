@@ -1,0 +1,34 @@
+/* nv-terminal-tokens.css — Neon Vigil Infinity6 Terminal shared tokens.
+   Single source of truth for the terminal shell: obsidian surfaces,
+   violet 1px grid borders, VT323 monospace type. */
+:root {
+  color-scheme: dark;
+  --nv-obsidian: #050508;
+  --nv-obsidian-2: #0a0a12;
+  --nv-obsidian-3: #101014;
+  --nv-obsidian-4: #16161c;
+  --nv-violet: #b4b6c2;
+  --nv-violet-bright: #c9c9d4;
+  --nv-violet-dim: #4a4a55;
+  --nv-border: #383845;
+  --nv-border-hot: #82828f;
+  --nv-cyan: #22d3ee;
+  --nv-cyan-dim: #155e6b;
+  --nv-pink: #f471b5;
+  --nv-magenta: #ff4fa3;
+  --nv-ink: #ececf6;
+  --nv-ink-soft: #a7a7c2;
+  --nv-ink-dim: #707078;
+  --nv-ok: #34d399;
+  --nv-err: #fb7185;
+  --nv-warn-bg: #f5c542;
+  --nv-warn-ink: #231a02;
+  --nv-stage: #808080;
+  --nv-track: #232329;
+  --nv-font-terminal: "VT323", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --nv-font-size: 18px;
+  --nv-line: 1.25;
+  --nv-shell-max: 1560px;
+  --nv-ticker-h: 34px;
+  --nv-dock-h: 56px;
+}
