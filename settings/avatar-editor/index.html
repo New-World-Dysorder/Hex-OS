@@ -1,0 +1,1600 @@
+<!doctype html>
+<html lang="en" data-nv-shell="back-only" data-nv-no-ticker>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="icon" href="data:," />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="../../nv-terminal-tokens.css" />
+    <link rel="stylesheet" href="../../nv-symbiont-theme.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../../config.js"></script>
+    <script src="../../auth.js"></script>
+    <script src="../../nv-symbiont-theme.js"></script>
+    <style>html:not(.nv-auth-ok) .infinity6-shell { visibility: hidden; }</style>
+    <script>
+      // Login gate (same pattern as hub / Profile Editor): no session, no page.
+      if (typeof requireSession === "function") {
+        requireSession("/index.html").then(function (user) {
+          if (user) document.documentElement.classList.add("nv-auth-ok");
+        });
+      }
+    </script>
+    <title>Avatar Editor</title>
+    <style>
+      :root {
+        --bg: #07070c;
+        --panel: #101014;
+        --panel-2: #15151a;
+        --edge: #2a2a32;
+        --edge-hot: #3d3d46;
+        --ink: #e9f4f6;
+        --ink-soft: #9aa7b4;
+        --ink-dim: #626d7d;
+        --cyan: #22d3ee;
+        --magenta: #f471b5;
+        --violet: #c9c9d4;
+        --warn-bg: #f5c542;
+        --warn-ink: #231a02;
+        --stage: #808080;
+        --track: #26262b;
+        --field: #0b0b13;
+        --ok: #34d399;
+        --err: #fb7185;
+        --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+        --sans: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace; /* Hex OS port, Nov 22, 2026: ONE typeface — the sans stack is retired; this var now resolves to the same mono stack so every rule that referenced it follows the single-typeface lock. */
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        background:
+          repeating-linear-gradient(0deg, transparent 0 47px, rgba(201, 201, 212, 0.05) 47px 48px),
+          repeating-linear-gradient(90deg, transparent 0 47px, rgba(34, 211, 238, 0.05) 47px 48px),
+          var(--bg);
+        color: var(--ink);
+        font-family: var(--sans);
+        font-size: 15px;
+        line-height: 1.45;
+      }
+      .warn {
+        background: var(--warn-bg);
+        color: var(--warn-ink);
+        padding: 10px 16px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        font-size: 13px;
+        text-align: center;
+        text-transform: uppercase;
+        border-bottom: 3px solid #0a0a0a;
+      }
+      .warn small { display: block; font-weight: 600; font-size: 12px; margin-top: 2px; text-transform: none; letter-spacing: 0; }
+      header.page {
+        padding: 20px 20px 4px;
+        max-width: 1440px;
+        margin: 0 auto;
+      }
+      header.page h1 {
+        margin: 0;
+        font-size: 26px;
+        font-weight: 800;
+        letter-spacing: 0.01em;
+        text-transform: uppercase;
+      }
+      header.page h1 .cy { color: var(--cyan); }
+      header.page h1 .mg { color: var(--magenta); }
+      header.page p {
+        margin: 8px 0 0;
+        color: var(--ink-soft);
+        max-width: 78ch;
+      }
+      .layout {
+        max-width: 1440px;
+        margin: 0 auto;
+        padding: 14px 20px 28px;
+        display: grid;
+        grid-template-columns: minmax(0, 1.3fr) minmax(340px, 460px);
+        gap: 18px;
+        align-items: start;
+      }
+
+      /* ---------- Stage / HUD frame ---------- */
+      .stage-wrap { position: sticky; top: 14px; }
+      .stage {
+        position: relative;
+        background: var(--stage);
+        border: 1px solid var(--edge-hot);
+        overflow: hidden;
+        aspect-ratio: 4 / 4.4;
+        min-height: 420px;
+        box-shadow: 0 0 0 1px #000, 10px 10px 0 rgba(34, 211, 238, 0.14);
+      }
+      .stage::before, .stage::after {
+        content: "";
+        position: absolute;
+        width: 22px; height: 22px;
+        z-index: 3;
+        pointer-events: none;
+      }
+      .stage::before { top: 8px; left: 8px; border-top: 2px solid var(--cyan); border-left: 2px solid var(--cyan); }
+      .stage::after { bottom: 8px; right: 8px; border-bottom: 2px solid var(--magenta); border-right: 2px solid var(--magenta); }
+      .stage canvas { display: block; width: 100%; height: 100%; }
+      .stage .overlay {
+        position: absolute;
+        left: 12px; bottom: 12px; right: 12px;
+        display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+        pointer-events: none; z-index: 4;
+      }
+      .stage .overlay > * { pointer-events: auto; }
+      .status {
+        background: rgba(5, 5, 10, 0.85);
+        color: #d9fbff;
+        border: 1px solid #155e6b;
+        font-family: var(--mono);
+        font-size: 12px;
+        padding: 6px 10px;
+      }
+      .status.err { background: rgba(90, 10, 30, 0.92); border-color: var(--magenta); color: #ffe4ef; }
+      .hud-strip {
+        display: flex; flex-wrap: wrap; gap: 14px 22px;
+        margin-top: 14px;
+        padding: 10px 12px;
+        background: var(--panel);
+        border: 1px solid var(--edge);
+        border-left: 4px solid var(--violet);
+      }
+      .hud-group { display: flex; flex-direction: column; gap: 6px; }
+      .hud-label {
+        font-family: var(--mono);
+        font-size: 10.5px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--ink-dim);
+      }
+      .btn-row { display: flex; flex-wrap: wrap; gap: 6px; }
+      .hint { color: var(--ink-soft); font-size: 13px; margin: 10px 2px 0; }
+      .idle-badge {
+        position: absolute; top: 12px; right: 12px; z-index: 4;
+        background: rgba(5, 5, 10, 0.88); border: 1px solid var(--cyan); color: #d9fbff;
+        font-family: var(--mono); font-size: 12px; letter-spacing: 0.1em; padding: 5px 9px;
+      }
+      .idle-badge[hidden] { display: none; }
+      .idle-ctl { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+      .idle-ctl input[type="range"] { width: 104px; }
+      .idle-val { font-family: var(--mono); color: var(--cyan); font-size: 13px; min-width: 32px; }
+      .idle-status { font-size: 12.5px; color: var(--ink-soft); }
+      .hud-cluster-label {
+        flex: 1 1 100%;
+        font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--ink-dim);
+        border-top: 1px dashed var(--edge); padding-top: 9px; margin-top: 2px;
+      }
+      .hud-cluster-label:first-child { border-top: 0; padding-top: 0; margin-top: 0; }
+
+      /* ---------- Buttons & pills ---------- */
+      button {
+        font: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        border: 1px solid var(--edge-hot);
+        background: var(--panel-2);
+        color: var(--ink);
+        border-radius: 0;
+        padding: 7px 12px;
+        cursor: pointer;
+      }
+      button:hover { border-color: var(--cyan); color: #c9f7ff; }
+      button.primary {
+        background: var(--cyan);
+        border-color: var(--cyan);
+        color: #04222b;
+      }
+      button.primary:hover { background: #67e8f9; color: #04222b; }
+      button[aria-pressed="true"] {
+        background: var(--cyan);
+        border-color: var(--cyan);
+        color: #04222b;
+        box-shadow: 3px 3px 0 rgba(244, 113, 181, 0.55);
+      }
+      button:disabled { opacity: 0.38; cursor: default; box-shadow: none; }
+      button:disabled:hover { border-color: var(--edge-hot); color: var(--ink); }
+      .mini {
+        font-size: 11px;
+        padding: 4px 8px;
+        font-family: var(--mono);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .pill-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+      .pill {
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 6px 10px 6px 6px;
+        text-align: left;
+      }
+      .pill .thumb {
+        width: 34px; height: 34px; flex: 0 0 34px;
+        background: #0a0a12;
+        border: 1px solid var(--edge-hot);
+        display: block;
+      }
+      .pill small { display: block; font-weight: 500; font-size: 11px; color: var(--ink-soft); letter-spacing: 0; }
+      .pill[aria-pressed="true"] small { color: #0b3540; }
+      .pill[aria-pressed="true"] .thumb { border-color: #04222b; }
+
+      /* ---------- Console panel / accordions ---------- */
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--edge);
+        box-shadow: 8px 8px 0 rgba(201, 201, 212, 0.12);
+      }
+      .toolbar {
+        display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--edge);
+        background: var(--panel-2);
+      }
+      .toolbar .spacer { flex: 1; }
+      .toolbar .tb-label { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-dim); width: 100%; }
+      .acc { border-bottom: 1px solid var(--edge); }
+      .acc:last-child { border-bottom: 0; }
+      .acc-head {
+        display: flex; align-items: center; gap: 8px;
+        padding: 0 10px 0 0;
+      }
+      .acc-toggle {
+        flex: 1;
+        display: flex; align-items: center; gap: 10px;
+        background: transparent; border: 0; padding: 13px 4px 13px 14px;
+        font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; text-align: left;
+      }
+      .acc-toggle:hover { color: var(--cyan); }
+      .acc-toggle .chev {
+        font-family: var(--mono); color: var(--cyan); font-size: 12px;
+        transition: transform 0.15s ease;
+      }
+      .acc.open .acc-toggle .chev { transform: rotate(90deg); }
+      .acc-toggle .count { font-family: var(--mono); font-size: 11px; color: var(--ink-dim); letter-spacing: 0.04em; text-transform: none; }
+      .acc-tools { display: flex; gap: 6px; flex: 0 0 auto; }
+      .acc-body { padding: 2px 14px 16px; }
+      .acc-body[hidden] { display: none; }
+      .acc-body h3 {
+        font-family: var(--mono);
+        font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--violet);
+        margin: 14px 0 6px;
+      }
+      .acc-body h3:first-child { margin-top: 4px; }
+      .note { font-size: 12.5px; color: var(--ink-soft); margin: 6px 0 0; }
+
+      /* ---------- Sliders ---------- */
+      .slider-row {
+        display: grid;
+        grid-template-columns: 112px 1fr 40px;
+        align-items: center;
+        gap: 10px;
+        padding: 3px 0;
+      }
+      .slider-row label { font-size: 13.5px; }
+      .slider-row output {
+        font-family: var(--mono);
+        font-size: 12.5px; text-align: right; color: var(--cyan);
+      }
+      .slider-row.fine { grid-template-columns: 112px 1fr 56px; }
+      .slider-row.fine output { color: var(--magenta); }
+      input[type="range"] {
+        -webkit-appearance: none; appearance: none;
+        width: 100%; height: 22px; background: transparent; margin: 0; cursor: pointer;
+      }
+      input[type="range"]::-webkit-slider-runnable-track { height: 4px; background: var(--track); }
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none; appearance: none;
+        width: 14px; height: 18px; border-radius: 0;
+        background: var(--cyan); border: 1px solid #04222b; margin-top: -7px;
+      }
+      input[type="range"]::-moz-range-track { height: 4px; background: var(--track); }
+      input[type="range"]::-moz-range-thumb { width: 12px; height: 16px; border-radius: 0; background: var(--cyan); border: 1px solid #04222b; }
+      .slider-row.fine input[type="range"]::-webkit-slider-thumb { background: var(--magenta); border-color: #33091f; }
+      .slider-row.fine input[type="range"]::-moz-range-thumb { background: var(--magenta); border-color: #33091f; }
+
+      .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+      .feedback { min-height: 20px; font-size: 13px; margin-top: 8px; color: var(--ok); }
+      .feedback.err { color: var(--err); }
+      textarea {
+        width: 100%; min-height: 104px;
+        font-family: var(--mono); font-size: 12px; line-height: 1.5;
+        background: var(--field); color: var(--ink);
+        border: 1px solid var(--edge-hot); border-radius: 0; padding: 10px; resize: vertical;
+      }
+      footer.page {
+        max-width: 1440px; margin: 0 auto; padding: 0 20px 26px;
+        color: var(--ink-soft); font-size: 13px;
+      }
+      @media (max-width: 900px) {
+        .layout { grid-template-columns: 1fr; }
+        .stage-wrap { position: static; }
+        .stage { aspect-ratio: 4 / 4.6; min-height: 360px; }
+        .slider-row { grid-template-columns: 100px 1fr 38px; }
+        .slider-row.fine { grid-template-columns: 100px 1fr 54px; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .acc-toggle .chev { transition: none; }
+      }
+    </style>
+    <style id="infinity6-shell">
+      /* ===== Infinity6Shell — master layout wrapper (Infinity6 Terminal) =====
+         Overrides the legacy console skin with the locked terminal shell:
+         obsidian surfaces, violet 1px grid borders, system monospace 18px type. */
+      html { background: var(--nv-obsidian); }
+      body {
+        background:
+          repeating-linear-gradient(0deg, transparent 0 47px, rgba(180, 182, 194, 0.06) 47px 48px),
+          repeating-linear-gradient(90deg, transparent 0 47px, rgba(180, 182, 194, 0.045) 47px 48px),
+          var(--nv-obsidian);
+        color: var(--nv-ink);
+        font-family: var(--nv-font-terminal);
+        font-size: var(--nv-font-size);
+        line-height: var(--nv-line);
+        letter-spacing: 0.01em;
+      }
+      .infinity6-shell {
+        max-width: var(--nv-shell-max);
+        margin: 0 auto;
+        border-left: 1px solid var(--nv-border);
+        border-right: 1px solid var(--nv-border);
+        background: var(--nv-obsidian-2);
+        min-height: 100vh;
+        display: flex; flex-direction: column;
+      }
+      @keyframes nv-spin { to { transform: rotate(360deg); } }
+      body { padding-top: 34px; }
+      .infinity6-shell { height: calc(100dvh - 34px); min-height: 0; overflow-y: auto; }
+      .cmdk-hexa { display: inline-block; vertical-align: -4px; animation: nv-spin 14s linear infinite; }
+      .light-bulb { color: #ff4fa3; vertical-align: -3px; }
+      /* ----- Warn strip, restyled as a shell row ----- */
+      .warn {
+        background: var(--nv-obsidian-3); color: var(--nv-warn-bg);
+        border-bottom: 1px solid var(--nv-border); padding: 7px 14px;
+        font-family: var(--nv-font-terminal); font-size: 17px; font-weight: 400;
+        letter-spacing: 0.08em; text-align: left;
+      }
+      .warn small { color: var(--nv-ink-soft); font-size: 15px; margin-top: 0; display: inline; }
+      .warn small::before { content: " — "; color: var(--nv-ink-dim); }
+      /* ----- Header row ----- */
+      header.page { max-width: none; margin: 0; padding: 14px 16px 10px; border-bottom: 1px solid var(--nv-border); }
+      header.page h1 {
+        font-family: var(--nv-font-terminal); font-size: 34px; font-weight: 400;
+        letter-spacing: 0.04em; line-height: 1;
+      }
+      header.page h1 .cy { color: var(--nv-cyan); }
+      header.page h1 .mg { color: var(--nv-pink); }
+      header.page h1::before { content: "▸ "; color: var(--nv-violet-bright); }
+      header.page p { color: var(--nv-ink-soft); font-size: 17px; max-width: 110ch; margin-top: 6px; }
+      /* ----- Main grid: stage | console, 1px violet grid borders ----- */
+      .layout {
+        max-width: none; margin: 0; padding: 0;
+        display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(360px, 480px);
+        gap: 0; align-items: stretch; flex: 1 0 auto;
+      }
+      .stage-wrap { position: sticky; top: 0; padding: 14px; border-right: 1px solid var(--nv-border); align-self: start; }
+      .stage {
+        border: 1px solid var(--nv-border-hot); background: var(--nv-stage);
+        box-shadow: none;
+      }
+      .stage::before { border-top: 2px solid var(--nv-cyan); border-left: 2px solid var(--nv-cyan); }
+      .stage::after { border-bottom: 2px solid var(--nv-pink); border-right: 2px solid var(--nv-pink); }
+      .status {
+        background: rgba(5, 5, 8, 0.92); border: 1px solid var(--nv-cyan-dim);
+        font-family: var(--nv-font-terminal); font-size: 16px; color: #d9fbff; padding: 4px 10px;
+      }
+      .status.err { background: rgba(60, 6, 24, 0.95); border-color: var(--nv-pink); }
+      .hud-strip {
+        background: var(--nv-obsidian-3); border: 1px solid var(--nv-border);
+        margin-top: 12px; padding: 10px 12px; gap: 12px 20px;
+      }
+      .hud-label { font-family: var(--nv-font-terminal); font-size: 15px; color: var(--nv-violet-bright); letter-spacing: 0.12em; }
+      .hud-cluster-label { font-family: var(--nv-font-terminal); font-size: 16px; color: var(--nv-cyan); letter-spacing: 0.12em; border-top-color: var(--nv-border); }
+      .hud-label::before { content: "[ "; color: var(--nv-ink-dim); }
+      .hud-label::after { content: " ]"; color: var(--nv-ink-dim); }
+      .hint { font-size: 16px; color: var(--nv-ink-soft); }
+      /* ----- Controls ----- */
+      button {
+        font-family: var(--nv-font-terminal); font-size: 17px; font-weight: 400;
+        letter-spacing: 0.04em; background: var(--nv-obsidian-4); color: var(--nv-ink);
+        border: 1px solid var(--nv-border-hot); padding: 4px 12px; text-transform: uppercase;
+      }
+      button:hover { border-color: var(--nv-cyan); color: #c9f7ff; background: #1b1b24; }
+      button.primary { background: var(--nv-violet); border-color: var(--nv-violet-bright); color: #0d0d12; }
+      button.primary:hover { background: var(--nv-violet-bright); color: #0d0d12; }
+      button[aria-pressed="true"] { background: var(--nv-cyan); border-color: var(--nv-cyan); color: #03222b; box-shadow: none; }
+      button.primary[aria-pressed="true"] { background: var(--nv-cyan); }
+      .mini { font-size: 15px; padding: 2px 8px; }
+      .pill { padding: 4px 10px 4px 4px; gap: 10px; text-transform: none; align-items: center; }
+      .pill .thumb { width: 36px; height: 36px; flex-basis: 36px; border: 1px solid var(--nv-border-hot); background: var(--nv-obsidian); }
+      .pill span { font-size: 17px; line-height: 1.1; }
+      .pill small { font-size: 14px; color: var(--nv-ink-soft); }
+      .pill[aria-pressed="true"] small { color: #0b3540; }
+      /* ----- Console panel & accordions ----- */
+      .panel { background: var(--nv-obsidian-2); border: 0; border-left: 0; box-shadow: none; }
+      .toolbar { background: var(--nv-obsidian-3); border-bottom: 1px solid var(--nv-border); padding: 10px 12px; gap: 6px; }
+      .toolbar .tb-label { font-family: var(--nv-font-terminal); font-size: 15px; color: var(--nv-violet-bright); letter-spacing: 0.12em; }
+      .acc { border-bottom: 1px solid var(--nv-border); }
+      .acc-toggle {
+        font-family: var(--nv-font-terminal); font-size: 19px; letter-spacing: 0.1em;
+        padding: 10px 4px 10px 12px; color: var(--nv-ink);
+      }
+      .acc-toggle .chev { color: var(--nv-violet-bright); font-size: 15px; }
+      .acc-toggle .count { font-family: var(--nv-font-terminal); font-size: 15px; color: var(--nv-cyan); }
+      .acc-body { padding: 2px 12px 14px; }
+      .acc-body h3 { font-family: var(--nv-font-terminal); font-size: 16px; color: var(--nv-violet-bright); letter-spacing: 0.12em; margin: 12px 0 4px; }
+      .note { font-size: 15.5px; color: var(--nv-ink-soft); line-height: 1.3; }
+      /* ----- Sliders ----- */
+      .slider-row { grid-template-columns: 118px 1fr 42px; gap: 10px; padding: 1px 0; }
+      .slider-row label { font-size: 17px; }
+      .slider-row output { font-family: var(--nv-font-terminal); font-size: 17px; color: var(--nv-cyan); }
+      .slider-row.fine { grid-template-columns: 118px 1fr 58px; }
+      .slider-row.fine output { color: var(--nv-pink); }
+      input[type="range"] { height: 20px; }
+      input[type="range"]::-webkit-slider-runnable-track { height: 3px; background: var(--nv-track); }
+      input[type="range"]::-webkit-slider-thumb { width: 12px; height: 18px; background: var(--nv-cyan); border: 1px solid #03222b; margin-top: -8px; }
+      input[type="range"]::-moz-range-track { height: 3px; background: var(--nv-track); }
+      input[type="range"]::-moz-range-thumb { width: 11px; height: 17px; background: var(--nv-cyan); border: 1px solid #03222b; }
+      .slider-row.fine input[type="range"]::-webkit-slider-thumb { background: var(--nv-pink); border-color: #33091f; }
+      .slider-row.fine input[type="range"]::-moz-range-thumb { background: var(--nv-pink); border-color: #33091f; }
+      .feedback { font-size: 16px; min-height: 20px; }
+      textarea {
+        font-family: var(--nv-font-terminal); font-size: 16px; line-height: 1.3;
+        background: var(--nv-obsidian); border: 1px solid var(--nv-border-hot); color: var(--nv-ink);
+      }
+      footer.page {
+        max-width: none; margin: 0; padding: 10px 16px 14px;
+        border-top: 1px solid var(--nv-border); color: var(--nv-ink-soft); font-size: 16px;
+      }
+      footer.page::before { content: "▸ FOOTNOTE // "; color: var(--nv-violet-bright); }
+      /* ----- Bottom Radio / Hexa dock ----- */
+      .nv-dock {
+        position: sticky; bottom: 0; z-index: 60;
+        display: flex; flex-wrap: wrap; align-items: stretch; gap: 0;
+        background: var(--nv-obsidian); border-top: 1px solid var(--nv-violet);
+        font-family: var(--nv-font-terminal); font-size: 17px; text-transform: uppercase;
+      }
+      .dock-cell { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-right: 1px solid var(--nv-border); min-height: var(--nv-dock-h); }
+      .dock-cell:last-child { border-right: 0; }
+      .dock-label { color: var(--nv-ink-dim); font-size: 15px; letter-spacing: 0.12em; }
+      .dock-hexa svg { animation: nv-spin 14s linear infinite; display: block; }
+      .dock-status { color: var(--nv-ok); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 34ch; text-transform: none; }
+      .dock-spacer { flex: 1 1 auto; border-right: 0; }
+      .dock button { white-space: nowrap; }
+      kbd {
+        font-family: var(--nv-font-terminal); font-size: 15px; border: 1px solid var(--nv-border-hot);
+        border-bottom-width: 2px; padding: 0 5px; color: var(--nv-violet-bright); background: var(--nv-obsidian-3);
+      }
+      /* ----- Cmd+K command palette ----- */
+      .palette-backdrop {
+        position: fixed; inset: 0; z-index: 200; background: rgba(3, 3, 6, 0.78);
+        display: flex; align-items: flex-start; justify-content: center; padding: 10vh 14px 14px;
+      }
+      .palette-backdrop[hidden] { display: none; }
+      .palette {
+        width: min(620px, 100%); background: var(--nv-obsidian-2);
+        border: 1px solid var(--nv-violet); box-shadow: 8px 8px 0 rgba(180, 182, 194, 0.25);
+        font-family: var(--nv-font-terminal);
+      }
+      .palette-head { display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--nv-border); padding: 10px 12px; }
+      .palette-head .sig { color: var(--nv-cyan); font-size: 20px; }
+      .palette input {
+        flex: 1; min-width: 0; background: transparent; border: 0; outline: none;
+        color: var(--nv-ink); font-family: var(--nv-font-terminal); font-size: 20px; text-transform: uppercase;
+      }
+      .palette input::placeholder { color: var(--nv-ink-dim); }
+      .palette-list { max-height: 46vh; overflow-y: auto; padding: 6px 0; margin: 0; list-style: none; }
+      .palette-list li { margin: 0; }
+      .palette-item {
+        width: 100%; display: flex; justify-content: space-between; gap: 12px; align-items: baseline;
+        background: transparent; border: 0; border-left: 3px solid transparent; text-align: left;
+        padding: 6px 12px; font-size: 18px; text-transform: none; color: var(--nv-ink);
+      }
+      .palette-item .cat { color: var(--nv-violet-bright); font-size: 15px; text-transform: uppercase; letter-spacing: 0.1em; white-space: nowrap; }
+      .palette-item.active, .palette-item:hover { background: var(--nv-obsidian-4); border-left-color: var(--nv-cyan); color: var(--nv-ink); }
+      .palette-empty { padding: 12px; color: var(--nv-ink-dim); font-size: 17px; }
+      .palette-foot { border-top: 1px solid var(--nv-border); padding: 6px 12px; color: var(--nv-ink-dim); font-size: 15px; display: flex; gap: 16px; flex-wrap: wrap; }
+      /* ----- Responsive: stack, never sideways-scroll ----- */
+      @media (max-width: 900px) {
+        .layout { grid-template-columns: 1fr; }
+        .stage-wrap { position: static; border-right: 0; border-bottom: 1px solid var(--nv-border); }
+        .panel { border-top: 0; }
+        .slider-row { grid-template-columns: 104px 1fr 40px; }
+        .slider-row.fine { grid-template-columns: 104px 1fr 56px; }
+        .nv-dock { position: static; }
+        .dock-status { max-width: 22ch; }
+        header.page h1 { font-size: 28px; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .dock-hexa svg, .cmdk-hexa { animation: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="infinity6-shell" id="infinity6Shell">
+
+    <header class="page">
+      <h1>Avatar <span class="mg">Editor</span></h1>
+    </header>
+
+    <div class="layout">
+      <div class="stage-wrap">
+        <div class="stage" id="stage">
+          <span class="idle-badge" id="idleBadge" hidden>IDLE · ATTRACT LOOP</span>
+          <div class="overlay">
+            <span class="status" id="loadStatus">Loading model…</span>
+          </div>
+        </div>
+
+        <div class="hud-strip">
+          <span class="hud-cluster-label">Camera &amp; Movement — editor controls</span>
+          <div class="hud-group">
+            <span class="hud-label">Camera focus</span>
+            <div class="btn-row" role="group" aria-label="Camera focus presets">
+              <button type="button" class="cam-btn" data-view="head" aria-pressed="false">Head / Face</button>
+              <button type="button" class="cam-btn" data-view="hairline" aria-pressed="false">Hairline</button>
+              <button type="button" class="cam-btn" data-view="upper" aria-pressed="false">Upper Body</button>
+              <button type="button" class="cam-btn" data-view="full" aria-pressed="true">Full Body</button>
+              <button type="button" class="cam-btn" data-view="turn" aria-pressed="false">3/4 Turnaround</button>
+            </div>
+          </div>
+          <div class="hud-group">
+            <span class="hud-label">Turntable</span>
+            <div class="btn-row">
+              <button type="button" id="btnTurntable" aria-pressed="false">Auto-rotate: Off</button>
+            </div>
+          </div>
+          <div class="hud-group">
+            <span class="hud-label">Idle return</span>
+            <div class="idle-ctl">
+              <button type="button" id="btnIdleToggle" aria-pressed="true">On</button>
+              <input type="range" id="idleTimeoutRange" min="5" max="60" step="1" value="10" aria-label="Idle timeout in seconds" />
+              <span class="idle-val" id="idleTimeoutVal">10s</span>
+              <button type="button" id="btnIdleNow">Return now</button>
+            </div>
+            <span class="idle-status" id="idleStatus">Camera returns in 10s of no input</span>
+          </div>
+          <span class="hud-cluster-label">Lighting</span>
+          <div class="hud-group">
+            <span class="hud-label">Studio lighting</span>
+            <div class="btn-row" role="group" aria-label="Studio lighting presets">
+              <svg class="light-bulb" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-4 12.7c.8.6 1 1.4 1 2.3h6c0-.9.2-1.7 1-2.3A7 7 0 0 0 12 2zM9 19h6v1a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2v-1z" fill="currentColor"/></svg>
+              <button type="button" class="light-btn" data-light="neon" aria-pressed="true">Neon</button>
+              <button type="button" class="light-btn" data-light="neutral" aria-pressed="false">Neutral</button>
+              <button type="button" class="light-btn" data-light="chiaroscuro" aria-pressed="false">Dark</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <section class="panel" aria-label="Editor console">
+        <div class="toolbar">
+          <span class="tb-label">Console — appearance · history &amp; symmetry</span>
+          <button type="button" id="btnUndo" disabled>&#10226; Undo</button>
+          <button type="button" id="btnRedo" disabled>&#10227; Redo</button>
+          <span class="spacer"></span>
+          <button type="button" id="btnSymmetry" aria-pressed="true" title="Symmetrical edits mirror paired face features; asymmetrical edits them independently">Symmetrical</button>
+        </div>
+
+        <div class="acc open" data-acc="face">
+          <div class="acc-head">
+            <button type="button" class="acc-toggle" aria-expanded="true"><span class="chev">&#9656;</span>Face<span class="count">11 morphs</span></button>
+            <div class="acc-tools">
+              <button type="button" class="mini" data-randomize="face">Randomize</button>
+              <button type="button" class="mini" data-reset="face">Reset</button>
+            </div>
+          </div>
+          <div class="acc-body">
+            <div id="faceSliders"></div>
+          </div>
+        </div>
+
+        <div class="acc" data-acc="body">
+          <div class="acc-head">
+            <button type="button" class="acc-toggle" aria-expanded="false"><span class="chev">&#9656;</span>Body<span class="count">7 morphs</span></button>
+            <div class="acc-tools">
+              <button type="button" class="mini" data-randomize="body">Randomize</button>
+              <button type="button" class="mini" data-reset="body">Reset</button>
+            </div>
+          </div>
+          <div class="acc-body" hidden>
+            <div id="bodySliders"></div>
+          </div>
+        </div>
+
+        <div class="acc" data-acc="hair">
+          <div class="acc-head">
+            <button type="button" class="acc-toggle" aria-expanded="false"><span class="chev">&#9656;</span>Shell<span class="count">attachments</span></button>
+            <div class="acc-tools">
+              <button type="button" class="mini" data-randomize="hair">Randomize</button>
+              <button type="button" class="mini" data-reset="hair">Reset</button>
+            </div>
+          </div>
+          <div class="acc-body" hidden>
+            <h3>Baby-hair shell</h3>
+            <div class="pill-grid" role="group" aria-label="Baby-hair shell style">
+              <button type="button" class="pill shell-pill" data-shell="none" aria-pressed="true">
+                <svg class="thumb" viewBox="0 0 34 34" aria-hidden="true"><rect width="34" height="34" fill="#0a0a12"/><path d="M6 15 C11 9 23 9 28 15" fill="none" stroke="#9aa7b4" stroke-width="1.4"/></svg>
+                <span>None<small>No shell</small></span>
+              </button>
+              <button type="button" class="pill shell-pill" data-shell="swoop" aria-pressed="false">
+                <svg class="thumb" viewBox="0 0 34 34" aria-hidden="true"><rect width="34" height="34" fill="#0a0a12"/><path d="M6 15 C11 9 23 9 28 15" fill="none" stroke="#626d7d" stroke-width="1.2"/><path d="M7 16 C13 21 21 21 27 15 M10 18.5 C14 22 20 22 24 18" fill="none" stroke="#f471b5" stroke-width="1.6"/></svg>
+                <span>Soft Swoop<small>Laid ribbons across the hairline</small></span>
+              </button>
+              <button type="button" class="pill shell-pill" data-shell="curls" aria-pressed="false">
+                <svg class="thumb" viewBox="0 0 34 34" aria-hidden="true"><rect width="34" height="34" fill="#0a0a12"/><path d="M6 15 C11 9 23 9 28 15" fill="none" stroke="#626d7d" stroke-width="1.2"/><path d="M9 16 c-1.6 2 1.4 3.4 2.4 1.8 c.8-1.2-.6-2.4-1.6-1.6 M16 17.5 c-1.6 2 1.4 3.4 2.4 1.8 c.8-1.2-.6-2.4-1.6-1.6 M23 16 c-1.6 2 1.4 3.4 2.4 1.8 c.8-1.2-.6-2.4-1.6-1.6" fill="none" stroke="#f471b5" stroke-width="1.5"/></svg>
+                <span>Delicate Curls<small>Micro-coils along the hairline</small></span>
+              </button>
+              <button type="button" class="pill shell-pill" data-shell="wisps" aria-pressed="false">
+                <svg class="thumb" viewBox="0 0 34 34" aria-hidden="true"><rect width="34" height="34" fill="#0a0a12"/><path d="M6 15 C11 9 23 9 28 15" fill="none" stroke="#626d7d" stroke-width="1.2"/><path d="M9 16 l-1 4 M13 17.5 l-.4 4.5 M17 18 l.2 4.5 M21 17.5 l.8 4.3 M25 16 l1.2 3.8" fill="none" stroke="#f471b5" stroke-width="1.5"/></svg>
+                <span>Feathered Wisps<small>Fine strands off the hairline</small></span>
+              </button>
+            </div>
+
+          </div>
+        </div>
+
+      </section>
+    </div>
+
+
+    <nav class="nv-dock" aria-label="Radio and Hexa dock">
+      <div class="dock-cell dock-hexa">
+        <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><polygon points="13,1.5 22.5,7 22.5,19 13,24.5 3.5,19 3.5,7" fill="none" stroke="#c9c9d4" stroke-width="1.6"/><polygon points="13,7 18,10 18,16 13,19 8,16 8,10" fill="none" stroke="#22d3ee" stroke-width="1.2"/><circle cx="13" cy="13" r="1.8" fill="#f471b5"/></svg>
+        <span><span class="dock-label">Hexa</span><br /><span class="dock-status" id="dockStatus">SYNCING…</span></span>
+      </div>
+      <div class="dock-cell">
+        <svg class="light-bulb" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-4 12.7c.8.6 1 1.4 1 2.3h6c0-.9.2-1.7 1-2.3A7 7 0 0 0 12 2zM9 19h6v1a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2v-1z" fill="currentColor"/></svg>
+        <button type="button" data-dock-light="neon">Neon</button>
+        <button type="button" data-dock-light="neutral">Neutral</button>
+        <button type="button" data-dock-light="chiaroscuro">Dark</button>
+        <button type="button" id="dockTurntable" aria-pressed="false">Turntable</button>
+      </div>
+      <div class="dock-cell dock-spacer" aria-hidden="true"></div>
+      <div class="dock-cell">
+        <button type="button" id="dockUndo">↩ Undo</button>
+        <button type="button" id="dockRedo">↪ Redo</button>
+        <button type="button" id="btnPalette"><svg class="cmdk-hexa" width="20" height="20" viewBox="0 0 26 26" aria-hidden="true"><polygon points="13,1.5 22.5,7 22.5,19 13,24.5 3.5,19 3.5,7" fill="none" stroke="#c9c9d4" stroke-width="1.6"/><polygon points="13,7 18,10 18,16 13,19 8,16 8,10" fill="none" stroke="#22d3ee" stroke-width="1.2"/><circle cx="13" cy="13" r="1.8" fill="#f471b5"/></svg> Command</button>
+      </div>
+    </nav>
+    </div><!-- /infinity6-shell -->
+
+    <div class="palette-backdrop" id="paletteBackdrop" hidden>
+      <div class="palette" role="dialog" aria-modal="true" aria-label="Command palette">
+        <div class="palette-head">
+          <span class="sig" aria-hidden="true"><svg class="cmdk-hexa" width="20" height="20" viewBox="0 0 26 26" aria-hidden="true"><polygon points="13,1.5 22.5,7 22.5,19 13,24.5 3.5,19 3.5,7" fill="none" stroke="#c9c9d4" stroke-width="1.6"/><polygon points="13,7 18,10 18,16 13,19 8,16 8,10" fill="none" stroke="#22d3ee" stroke-width="1.2"/><circle cx="13" cy="13" r="1.8" fill="#f471b5"/></svg></span>
+          <input type="text" id="paletteInput" placeholder="Type a command — camera, light, morph…" autocomplete="off" spellcheck="false" />
+          <kbd>ESC</kbd>
+        </div>
+        <ul class="palette-list" id="paletteList"></ul>
+        <div class="palette-foot"><span>↑↓ Navigate</span><span>↵ Run</span><span>ESC Close</span><span><svg class="cmdk-hexa" width="20" height="20" viewBox="0 0 26 26" aria-hidden="true"><polygon points="13,1.5 22.5,7 22.5,19 13,24.5 3.5,19 3.5,7" fill="none" stroke="#c9c9d4" stroke-width="1.6"/><polygon points="13,7 18,10 18,16 13,19 8,16 8,10" fill="none" stroke="#22d3ee" stroke-width="1.2"/><circle cx="13" cy="13" r="1.8" fill="#f471b5"/></svg> / Ctrl+K Toggle</span></div>
+      </div>
+    </div>
+
+    <script src="assets/js/three.min.js"></script>
+    <script src="assets/js/OrbitControls.js"></script>
+    <script src="assets/js/GLTFLoader.js"></script>
+    <script>
+      (function () {
+        "use strict";
+
+        /* ================= Data ================= */
+
+        var FACE_MORPHS = ["faceWidth","cheek","jaw","chin","eyeSize","eyeGap","noseBridge","noseTip","mouthWidth","earSize","earPoint"];
+        var BODY_MORPHS = ["height","shoulder","chest","waist","hip","armLength","legLength"];
+        var ALL_MORPHS = FACE_MORPHS.concat(BODY_MORPHS);
+        var GROUPS = { face: FACE_MORPHS, body: BODY_MORPHS };
+        var MODEL_URL = "assets/Neon_Ultra_Bald_Morphs_v01.glb";
+
+        // Shell is a separate GLB, attached at runtime to the avatar
+        // root — never baked into the bald base. It is already in avatar
+        // world space, so it attaches at identity.
+        var SHELL_GLB = "Neon_BabyHair_Shell_v01.glb";
+        var SHELL_URL = "assets/" + SHELL_GLB;
+        // Style key -> mesh name inside the shell GLB.
+        var SHELL_MESH = { swoop: "BabyHair_Swoop", curls: "BabyHair_Curls", wisps: "BabyHair_Wisps" };
+        var SHELL_STYLES = ["none", "swoop", "curls", "wisps"];
+        var SHELL_LABELS = { none: "None", swoop: "Soft Swoop", curls: "Delicate Curls", wisps: "Feathered Wisps" };
+
+        var LABELS = {
+          faceWidth: "Face width", cheek: "Cheekbones", jaw: "Jaw", chin: "Chin",
+          eyeSize: "Eye size", eyeGap: "Eye gap", noseBridge: "Nose bridge", noseTip: "Nose tip",
+          mouthWidth: "Mouth width", earSize: "Ear size", earPoint: "Ear point",
+          height: "Height", shoulder: "Shoulders", chest: "Chest", waist: "Waist",
+          hip: "Hips", armLength: "Arm length", legLength: "Leg length"
+        };
+
+        // Paired features for the symmetry toggle. A pair renders two
+        // sliders (L / R). Symmetrical: both drive one shared influence.
+        // Asymmetrical: the influence is the L/R average, and half the
+        // L/R difference is applied as a lateral offset on the feature's
+        // own meshes, so the two sides genuinely diverge on this
+        // shared-morph base. Mesh name fragments are matched loosely.
+        var PAIRS = {
+          eyeSize:   { label: "Eye size",    parts: ["eye"],  shear: 0.010 },
+          eyeGap:    { label: "Eye gap",     parts: ["eye"],  shear: 0.014 },
+          noseBridge:{ label: "Nose bridge", parts: ["nose"], shear: 0.006 },
+          noseTip:   { label: "Nose tip",    parts: ["nose"], shear: 0.008 },
+          earSize:   { label: "Ear size",    parts: ["ear"],  shear: 0.010 },
+          earPoint:  { label: "Ear point",   parts: ["ear"],  shear: 0.008 }
+        };
+
+        /* ================= State ================= */
+
+        var state = {
+          morphs: {},        // unpaired morph name -> slider value 0..100
+          asym: {},          // pair name -> { l: 0..100, r: 0..100 }
+          symmetrical: true,
+          shell: "none",
+          light: "neon"
+        };
+        ALL_MORPHS.forEach(function (n) { state.morphs[n] = 50; });
+        Object.keys(PAIRS).forEach(function (n) { state.asym[n] = { l: 50, r: 50 }; });
+
+        // Damping: influences ease toward targets each frame instead of
+        // snapping, so scrubbing a slider stays smooth across all meshes.
+        var influenceCur = {}, influenceTgt = {};
+        ALL_MORPHS.forEach(function (n) { influenceCur[n] = 0; influenceTgt[n] = 0; });
+
+        var sliders = {}, outputs = {};
+        var pairSliders = {};     // name -> { l, r, lOut, rOut }
+        var meshes = [], morphMeshes = [];
+        var pairMeshes = {};      // pair name -> [meshes] for the asym offset
+        var model = null, modelBox = null;
+        var shellObject = null, shellLoaded = false, shellLoading = false, shellError = "";
+        var shellStyleMeshes = {};  // style key -> mesh inside shell GLB
+        var baseStatus = "";
+
+        var baldModel = null, baldBox = null;
+        // Camera/movement state (return tween, idle timer and its
+        // timeout/enabled/active flags) is deliberately NOT kept here:
+        // it is private to the EditorCamera module further down, so the
+        // editor screen and any game screen can never share camera state,
+        // control bindings, or movement handlers.
+
+        /* ================= History (undo / redo) ================= */
+
+        var history = [], historyIdx = -1, restoring = false;
+
+        function snapshot() {
+          var m = {}, a = {};
+          ALL_MORPHS.forEach(function (n) { m[n] = state.morphs[n]; });
+          Object.keys(PAIRS).forEach(function (n) { a[n] = { l: state.asym[n].l, r: state.asym[n].r }; });
+          return {
+            morphs: m, asym: a, symmetrical: state.symmetrical,
+            shell: state.shell
+          };
+        }
+        function pushHistory() {
+          if (restoring) return;
+          history = history.slice(0, historyIdx + 1);
+          history.push(JSON.stringify(snapshot()));
+          if (history.length > 60) history.shift();
+          historyIdx = history.length - 1;
+          updateHistoryButtons();
+        }
+        function updateHistoryButtons() {
+          document.getElementById("btnUndo").disabled = historyIdx <= 0;
+          document.getElementById("btnRedo").disabled = historyIdx >= history.length - 1;
+        }
+        function restoreSnapshot(json) {
+          var s = JSON.parse(json);
+          restoring = true;
+          ALL_MORPHS.forEach(function (n) {
+            if (PAIRS[n]) { if (s.asym && s.asym[n]) setPair(n, s.asym[n].l, s.asym[n].r); }
+            else setSlider(n, s.morphs[n]);
+          });
+          setSymmetry(!!s.symmetrical, true);
+          setShell(s.shell || "none", true);
+          restoring = false;
+          updateHistoryButtons();
+        }
+        document.getElementById("btnUndo").addEventListener("click", function () {
+          if (historyIdx > 0) { historyIdx--; restoreSnapshot(history[historyIdx]); }
+        });
+        document.getElementById("btnRedo").addEventListener("click", function () {
+          if (historyIdx < history.length - 1) { historyIdx++; restoreSnapshot(history[historyIdx]); }
+        });
+        document.addEventListener("keydown", function (e) {
+          if (!(e.ctrlKey || e.metaKey)) return;
+          var tag = (e.target && e.target.tagName) || "";
+          if (tag === "TEXTAREA" || tag === "INPUT") return;
+          var k = e.key.toLowerCase();
+          if (k === "z" && !e.shiftKey) { e.preventDefault(); document.getElementById("btnUndo").click(); }
+          if ((k === "z" && e.shiftKey) || k === "y") { e.preventDefault(); document.getElementById("btnRedo").click(); }
+        });
+
+        /* ================= Sliders ================= */
+
+        function makeSliderRow(container, idPrefix, key, label, fine) {
+          var row = document.createElement("div");
+          row.className = "slider-row" + (fine ? " fine" : "");
+          var lab = document.createElement("label");
+          lab.htmlFor = idPrefix + key;
+          lab.textContent = label;
+          var input = document.createElement("input");
+          input.type = "range";
+          input.id = idPrefix + key;
+          input.setAttribute("aria-label", label);
+          var out = document.createElement("output");
+          out.id = "out-" + idPrefix + key;
+          row.appendChild(lab); row.appendChild(input); row.appendChild(out);
+          container.appendChild(row);
+          return { input: input, out: out };
+        }
+
+        function setSlider(name, value) {
+          value = Math.max(0, Math.min(100, Math.round(value)));
+          state.morphs[name] = value;
+          if (sliders[name]) { sliders[name].value = String(value); outputs[name].textContent = String(value); }
+          influenceTgt[name] = (value - 50) / 50;
+        }
+        function setPair(name, l, r) {
+          l = Math.max(0, Math.min(100, Math.round(l)));
+          r = Math.max(0, Math.min(100, Math.round(r)));
+          state.asym[name] = { l: l, r: r };
+          var ps = pairSliders[name];
+          if (ps) {
+            ps.l.value = String(l); ps.r.value = String(r);
+            ps.lOut.textContent = String(l); ps.rOut.textContent = String(r);
+          }
+          influenceTgt[name] = ((l + r) / 2 - 50) / 50;
+        }
+        function onPairInput(name) {
+          var ps = pairSliders[name];
+          var l = parseFloat(ps.l.value), r = parseFloat(ps.r.value);
+          state.asym[name] = { l: l, r: r };
+          influenceTgt[name] = ((l + r) / 2 - 50) / 50;
+        }
+
+        function buildMorphSliders() {
+          var faceC = document.getElementById("faceSliders");
+          FACE_MORPHS.forEach(function (name) {
+            if (PAIRS[name]) {
+              pairSliders[name] = {};
+              ["l", "r"].forEach(function (side) {
+                var r = makeSliderRow(faceC, "sl-", name + "-" + side, PAIRS[name].label + (side === "l" ? " · L" : " · R"));
+                r.input.min = "0"; r.input.max = "100"; r.input.step = "1"; r.input.value = "50";
+                r.out.textContent = "50";
+                pairSliders[name][side] = r.input;
+                pairSliders[name][side + "Out"] = r.out;
+                (function (nm, sd, inp, out) {
+                  inp.addEventListener("input", function () {
+                    out.textContent = inp.value;
+                    if (state.symmetrical) {
+                      var other = sd === "l" ? "r" : "l";
+                      pairSliders[nm][other].value = inp.value;
+                      pairSliders[nm][other + "Out"].textContent = inp.value;
+                    }
+                    onPairInput(nm);
+                  });
+                  inp.addEventListener("change", pushHistory);
+                })(name, side, r.input, r.out);
+              });
+            } else {
+              var r2 = makeSliderRow(faceC, "sl-", name, LABELS[name]);
+              r2.input.min = "0"; r2.input.max = "100"; r2.input.step = "1"; r2.input.value = "50";
+              r2.out.textContent = "50";
+              sliders[name] = r2.input; outputs[name] = r2.out;
+              (function (nm, inp, out) {
+                inp.addEventListener("input", function () {
+                  out.textContent = inp.value;
+                  var v = parseFloat(inp.value);
+                  state.morphs[nm] = v;
+                  influenceTgt[nm] = (v - 50) / 50;
+                });
+                inp.addEventListener("change", pushHistory);
+              })(name, r2.input, r2.out);
+            }
+          });
+          var bodyC = document.getElementById("bodySliders");
+          BODY_MORPHS.forEach(function (name) {
+            var r = makeSliderRow(bodyC, "sl-", name, LABELS[name]);
+            r.input.min = "0"; r.input.max = "100"; r.input.step = "1"; r.input.value = "50";
+            r.out.textContent = "50";
+            sliders[name] = r.input; outputs[name] = r.out;
+            (function (nm, inp, out) {
+              inp.addEventListener("input", function () {
+                out.textContent = inp.value;
+                var v = parseFloat(inp.value);
+                state.morphs[nm] = v;
+                influenceTgt[nm] = (v - 50) / 50;
+              });
+              inp.addEventListener("change", pushHistory);
+            })(name, r.input, r.out);
+          });
+        }
+
+
+        /* ================= Accordions ================= */
+
+        var accs = document.querySelectorAll(".acc");
+        for (var ai = 0; ai < accs.length; ai++) {
+          (function (acc) {
+            var toggle = acc.querySelector(".acc-toggle");
+            var body = acc.querySelector(".acc-body");
+            toggle.addEventListener("click", function () {
+              var open = acc.classList.toggle("open");
+              toggle.setAttribute("aria-expanded", open ? "true" : "false");
+              if (open) body.removeAttribute("hidden"); else body.setAttribute("hidden", "");
+            });
+          })(accs[ai]);
+        }
+
+        /* ================= Symmetry ================= */
+
+        function setSymmetry(on, silent) {
+          state.symmetrical = on;
+          var btn = document.getElementById("btnSymmetry");
+          btn.setAttribute("aria-pressed", on ? "true" : "false");
+          btn.textContent = on ? "Symmetrical" : "Asymmetrical";
+          if (on) {
+            // Re-mirror: right follows left.
+            Object.keys(PAIRS).forEach(function (n) { setPair(n, state.asym[n].l, state.asym[n].l); });
+          }
+          if (!silent) pushHistory();
+        }
+        document.getElementById("btnSymmetry").addEventListener("click", function () {
+          setSymmetry(!state.symmetrical);
+        });
+
+        /* ================= Per-group randomize / reset ================= */
+
+        function randInt(a, b) { return a + Math.round(Math.random() * (b - a)); }
+        function randFloat(a, b) { return a + Math.random() * (b - a); }
+        var rndBtns = document.querySelectorAll("[data-randomize]");
+        for (var ri = 0; ri < rndBtns.length; ri++) {
+          rndBtns[ri].addEventListener("click", function () {
+            var g = this.getAttribute("data-randomize");
+            if (g === "hair") {
+              setShell(SHELL_STYLES[randInt(0, SHELL_STYLES.length - 1)], true);
+            } else {
+              var names = GROUPS[g];
+              names.forEach(function (n) {
+                if (PAIRS[n]) {
+                  var l = randInt(15, 85);
+                  var r = state.symmetrical ? l : Math.max(0, Math.min(100, l + randInt(-30, 30)));
+                  setPair(n, l, r);
+                } else {
+                  setSlider(n, randInt(15, 85));
+                }
+              });
+            }
+            pushHistory();
+          });
+        }
+        var rstBtns = document.querySelectorAll("[data-reset]");
+        for (var si = 0; si < rstBtns.length; si++) {
+          rstBtns[si].addEventListener("click", function () {
+            var g = this.getAttribute("data-reset");
+            if (g === "hair") {
+              setShell("none", true);
+            } else {
+              GROUPS[g].forEach(function (n) {
+                if (PAIRS[n]) setPair(n, 50, 50); else setSlider(n, 50);
+              });
+            }
+            pushHistory();
+          });
+        }
+
+        /* ================= Three.js scene ================= */
+
+        buildMorphSliders();
+
+        var stage = document.getElementById("stage");
+        var statusEl = document.getElementById("loadStatus");
+
+        if (typeof THREE === "undefined" || !THREE.GLTFLoader || !THREE.OrbitControls) {
+          statusEl.textContent = "Error: Three.js failed to load.";
+          statusEl.className = "status err";
+          /* Error states (Nov 22, 2026): also raise the error toast.
+             nv-shell.js loads after this script, so the toast call
+             is deferred to window load, when NVToast exists. */
+          window.addEventListener("load", function () {
+            if (window.NVToast) NVToast.error("Editor failed to load — Three.js unavailable");
+          });
+          return;
+        }
+
+        var renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        renderer.outputEncoding = THREE.sRGBEncoding;
+        stage.insertBefore(renderer.domElement, stage.firstChild);
+
+        var scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x808080);
+
+        var camera = new THREE.PerspectiveCamera(40, 1, 0.01, 100);
+        var controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.08;
+        controls.autoRotateSpeed = 1.6;
+
+        /* ----- 3-point studio rig: key / fill / rim over a soft base ----- */
+        var hemi = new THREE.HemisphereLight(0xffffff, 0x444455, 0.95);
+        scene.add(hemi);
+        var keyLight = new THREE.DirectionalLight(0xffffff, 0.85);
+        keyLight.position.set(1.5, 2.2, 2.5);
+        scene.add(keyLight);
+        var fillLight = new THREE.DirectionalLight(0xffffff, 0.0);
+        fillLight.position.set(-2.2, 0.6, 1.6);
+        scene.add(fillLight);
+        var rimLight = new THREE.DirectionalLight(0xdfe8ff, 0.35);
+        rimLight.position.set(-2, 1.2, -2);
+        scene.add(rimLight);
+
+        var LIGHTING = {
+          neutral: {
+            bg: 0x808080, hemi: 0.95, hemiSky: 0xffffff, hemiGround: 0x444455,
+            key: 0.85, keyColor: 0xffffff, keyPos: [1.5, 2.2, 2.5],
+            fill: 0.0, fillColor: 0xffffff,
+            rim: 0.35, rimColor: 0xdfe8ff, rimPos: [-2, 1.2, -2], bulb: "#ffffff"
+          },
+          neon: {
+            bg: 0x0d0d18, hemi: 0.32, hemiSky: 0x8a7bff, hemiGround: 0x12060f,
+            key: 0.65, keyColor: 0x9be9ff, keyPos: [1.6, 1.6, 2.4],
+            fill: 0.55, fillColor: 0xa78bfa,
+            rim: 1.5, rimColor: 0xff4fa3, rimPos: [-1.6, 1.4, -2.4], bulb: "#ff4fa3"
+          },
+          chiaroscuro: {
+            bg: 0x1a1a1e, hemi: 0.10, hemiSky: 0x555560, hemiGround: 0x000000,
+            key: 1.5, keyColor: 0xfff2df, keyPos: [2.4, 2.8, 1.2],
+            fill: 0.0, fillColor: 0xffffff,
+            rim: 0.22, rimColor: 0xbfd4ff, rimPos: [-2.2, 1.0, -1.8], bulb: "#808080"
+          }
+        };
+        function applyLighting(name) {
+          var p = LIGHTING[name];
+          if (!p) return;
+          state.light = name;
+          scene.background = new THREE.Color(p.bg);
+          hemi.intensity = p.hemi;
+          hemi.color = new THREE.Color(p.hemiSky);
+          hemi.groundColor = new THREE.Color(p.hemiGround);
+          keyLight.intensity = p.key; keyLight.color = new THREE.Color(p.keyColor);
+          keyLight.position.set(p.keyPos[0], p.keyPos[1], p.keyPos[2]);
+          fillLight.intensity = p.fill; fillLight.color = new THREE.Color(p.fillColor);
+          rimLight.intensity = p.rim; rimLight.color = new THREE.Color(p.rimColor);
+          rimLight.position.set(p.rimPos[0], p.rimPos[1], p.rimPos[2]);
+          var btns = document.querySelectorAll(".light-btn");
+          for (var i = 0; i < btns.length; i++) {
+            btns[i].setAttribute("aria-pressed", btns[i].getAttribute("data-light") === name ? "true" : "false");
+          }
+          var bulbs = document.querySelectorAll(".light-bulb");
+          for (var b = 0; b < bulbs.length; b++) bulbs[b].style.color = p.bulb;
+          var dl = document.querySelectorAll("[data-dock-light]");
+          for (var d = 0; d < dl.length; d++) {
+            dl[d].setAttribute("aria-pressed", dl[d].getAttribute("data-dock-light") === name ? "true" : "false");
+          }
+        }
+        var lightBtns = document.querySelectorAll(".light-btn");
+        for (var li = 0; li < lightBtns.length; li++) {
+          lightBtns[li].addEventListener("click", function () { applyLighting(this.getAttribute("data-light")); });
+        }
+
+        /* Turntable wiring lives in the EditorCamera module below —
+           camera and movement controls are not wired anywhere else. */
+
+        function resize() {
+          var w = stage.clientWidth, h = stage.clientHeight;
+          if (!w || !h) return;
+          renderer.setSize(w, h);
+          camera.aspect = w / h;
+          camera.updateProjectionMatrix();
+        }
+        window.addEventListener("resize", resize);
+
+        /* ================= EditorCamera — editor-local camera & movement module =================
+           Every camera and movement behaviour for THIS editor screen lives
+           inside this module and nowhere else: the editor's own orbit
+           bindings, its five focus presets (Head/Face, Hairline, Upper
+           Body, Full Body, 3/4 Turnaround), the turntable, the smooth
+           camera-return tween, and the idle timer that triggers the
+           return. It shares no camera state, control bindings, or
+           movement handlers with any game-screen code — the game screen
+           keeps its own separate camera/movement module and its own
+           separate appearance-vs-camera option groups.
+           Appearance code (morphs, hair, shell) and lighting never touch
+           camera internals. The single bridge is opts.onEnterIdle, wired
+           by the editor below, which the module invokes when the idle
+           state begins (the editor uses it to start the default
+           animation loop on models that carry animation). */
+
+        function createEditorCameraModule(opts) {
+          var camera = opts.camera;
+          var controls = opts.controls;
+          var views = {};
+          var tween = null;
+          var idle = { timeoutSec: 10, enabled: true, active: false, lastActivity: Date.now() };
+          var badgeEl = document.getElementById("idleBadge");
+          var statusOut = document.getElementById("idleStatus");
+          var timeoutValOut = document.getElementById("idleTimeoutVal");
+          var btnToggle = document.getElementById("btnIdleToggle");
+          var btnTurn = document.getElementById("btnTurntable");
+
+          /* ----- The editor's own focus presets, from the active model's box ----- */
+          function computeViews() {
+            var box = opts.getBox();
+            if (!box) return;
+            var size = box.getSize(new THREE.Vector3());
+            var center = box.getCenter(new THREE.Vector3());
+            var fitDist = (size.y / 2) / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * 1.25;
+            var fullDist = Math.max(fitDist, size.length());
+            views.full = { pos: new THREE.Vector3(center.x, center.y, center.z + fullDist), target: center.clone() };
+            var headC = new THREE.Vector3(center.x, box.max.y - size.y * 0.09, center.z);
+            views.head = { pos: new THREE.Vector3(headC.x, headC.y, headC.z + Math.max(size.y * 0.42, 0.35)), target: headC };
+            // Hairline: tight on the forehead band, slightly above eye level.
+            var hairC = new THREE.Vector3(center.x, box.max.y - size.y * 0.045, center.z + size.z * 0.10);
+            views.hairline = { pos: new THREE.Vector3(hairC.x + size.x * 0.10, hairC.y + size.y * 0.03, hairC.z + Math.max(size.y * 0.20, 0.16)), target: hairC };
+            var upperC = new THREE.Vector3(center.x, box.min.y + size.y * 0.78, center.z);
+            views.upper = { pos: new THREE.Vector3(upperC.x, upperC.y, upperC.z + Math.max(size.y * 0.85, 0.6)), target: upperC };
+            // 3/4 turnaround: off-axis three-quarter angle at full-body distance.
+            views.turn = {
+              pos: new THREE.Vector3(center.x + fullDist * 0.72, center.y + size.y * 0.10, center.z + fullDist * 0.72),
+              target: new THREE.Vector3(center.x, center.y + size.y * 0.04, center.z)
+            };
+          }
+          function markCamButton(which) {
+            var btns = document.querySelectorAll(".cam-btn");
+            for (var i = 0; i < btns.length; i++) {
+              btns[i].setAttribute("aria-pressed", btns[i].getAttribute("data-view") === which ? "true" : "false");
+            }
+          }
+          function goView(which) {
+            var v = views[which];
+            if (!v) return;
+            tween = null; // a manual preset cancels any idle camera return
+            camera.position.copy(v.pos);
+            controls.target.copy(v.target);
+            controls.update();
+            markCamButton(which);
+          }
+          var camBtns = document.querySelectorAll(".cam-btn");
+          for (var ci = 0; ci < camBtns.length; ci++) {
+            camBtns[ci].addEventListener("click", function () { goView(this.getAttribute("data-view")); });
+          }
+
+          /* ----- Turntable (editor movement control) ----- */
+          function setTurntable(on) {
+            controls.autoRotate = on;
+            btnTurn.setAttribute("aria-pressed", on ? "true" : "false");
+            btnTurn.textContent = on ? "Auto-rotate: On" : "Auto-rotate: Off";
+          }
+          btnTurn.addEventListener("click", function () { setTurntable(!controls.autoRotate); });
+
+          /* ----- Idle timer, camera reset and zoom-in — editor-scoped -----
+             After idle.timeoutSec with no interaction (slider, button,
+             orbit, wheel, touch or key input, all heard inside this
+             module), the camera eases back to the Full Body default —
+             framing and zooming in on the model — and onEnterIdle fires.
+             Any interaction cancels the idle state and restarts the timer. */
+          function noteInteraction() {
+            idle.lastActivity = Date.now();
+            if (idle.active) {
+              idle.active = false;
+              badgeEl.hidden = true;
+            }
+            tween = null;
+          }
+          ["pointerdown", "keydown", "wheel", "touchstart"].forEach(function (type) {
+            document.addEventListener(type, noteInteraction, { passive: true, capture: true });
+          });
+          controls.addEventListener("start", noteInteraction);
+
+          function enterIdle() {
+            if (!idle.enabled || idle.active) return;
+            idle.active = true;
+            badgeEl.hidden = false;
+            if (controls.autoRotate) setTurntable(false);
+            if (views.full) {
+              tween = {
+                t: 0, dur: 1.4,
+                fromPos: camera.position.clone(), toPos: views.full.pos.clone(),
+                fromTgt: controls.target.clone(), toTgt: views.full.target.clone()
+              };
+              markCamButton("full");
+            }
+            if (opts.onEnterIdle) opts.onEnterIdle();
+          }
+          document.getElementById("btnIdleNow").addEventListener("click", function () { enterIdle(); });
+          btnToggle.addEventListener("click", function () {
+            idle.enabled = !idle.enabled;
+            btnToggle.setAttribute("aria-pressed", idle.enabled ? "true" : "false");
+            btnToggle.textContent = idle.enabled ? "On" : "Off";
+            if (!idle.enabled && idle.active) { idle.active = false; badgeEl.hidden = true; }
+            idle.lastActivity = Date.now();
+          });
+          document.getElementById("idleTimeoutRange").addEventListener("input", function () {
+            idle.timeoutSec = Math.max(5, Math.min(60, parseInt(this.value, 10) || 10));
+            timeoutValOut.textContent = idle.timeoutSec + "s";
+          });
+          setInterval(function () {
+            if (!idle.enabled) { statusOut.textContent = "Idle return off"; return; }
+            if (idle.active) { statusOut.textContent = "Idle — camera home · default loop on"; return; }
+            var remain = Math.ceil(idle.timeoutSec - (Date.now() - idle.lastActivity) / 1000);
+            if (remain <= 0) { enterIdle(); return; }
+            statusOut.textContent = "Camera returns in " + remain + "s of no input";
+          }, 250);
+
+          /* ----- Per-frame: run the return tween, then the controls ----- */
+          function update(dt) {
+            if (tween) {
+              tween.t += dt / tween.dur;
+              var tt = Math.min(tween.t, 1);
+              var ee = tt < 0.5 ? 4 * tt * tt * tt : 1 - Math.pow(-2 * tt + 2, 3) / 2;
+              camera.position.lerpVectors(tween.fromPos, tween.toPos, ee);
+              controls.target.lerpVectors(tween.fromTgt, tween.toTgt, ee);
+              if (tt >= 1) tween = null;
+            }
+            controls.update();
+          }
+
+          return {
+            computeViews: computeViews,
+            goView: goView,
+            enterIdle: enterIdle,
+            noteInteraction: noteInteraction,
+            update: update,
+            isIdle: function () { return idle.active; },
+            getIdleTimeoutSec: function () { return idle.timeoutSec; }
+          };
+        }
+
+        var EditorCamera = createEditorCameraModule({
+          camera: camera,
+          controls: controls,
+          getBox: function () { return modelBox; },
+          onEnterIdle: function () {}
+        });
+        // Aliases so the model loaders keep their existing calls; all
+        // camera state itself stays inside the module.
+        var computeViews = EditorCamera.computeViews;
+        var goView = EditorCamera.goView;
+
+        /* ================= Attachments: shell ================= */
+
+        function refreshStatus() {
+          if (shellError) {
+            statusEl.textContent = "Error loading shell GLB (" + SHELL_GLB + "): " + shellError + (baseStatus ? " · " + baseStatus : "");
+            statusEl.className = "status err";
+            return;
+          }
+          var parts = [];
+          if (baseStatus) parts.push(baseStatus);
+          if (state.shell === "none") parts.push("Shell: none");
+          else if (shellLoaded) parts.push("Shell: " + SHELL_LABELS[state.shell]);
+          else if (shellLoading) parts.push("Shell: loading " + SHELL_GLB + "…");
+          statusEl.textContent = parts.length ? parts.join(" · ") : "Loading model…";
+          statusEl.className = "status";
+        }
+
+        /* ----- Baby-hair shell: one GLB, three style meshes, cycled by
+           visibility. The holder mesh (alpha-0 scalp band) is never shown. */
+        function applyShellVisibility() {
+          if (!shellObject) return;
+          Object.keys(SHELL_MESH).forEach(function (key) {
+            var m = shellStyleMeshes[key];
+            if (m) m.visible = (key === state.shell);
+          });
+          shellObject.visible = state.shell !== "none";
+        }
+        function loadShell() {
+          if (shellLoaded || shellLoading || !baldModel) return;
+          shellLoading = true;
+          refreshStatus();
+          new THREE.GLTFLoader().load(
+            SHELL_URL,
+            function (gltf) {
+              shellLoading = false; shellLoaded = true; shellError = "";
+              shellObject = gltf.scene;
+              shellObject.traverse(function (obj) {
+                if (!obj.isMesh) return;
+                if (obj.name === "BabyHair_Holder") { obj.visible = false; return; }
+                Object.keys(SHELL_MESH).forEach(function (key) {
+                  if (obj.name === SHELL_MESH[key]) shellStyleMeshes[key] = obj;
+                });
+              });
+              // Fallback if a style mesh name is not found: match by suffix.
+              Object.keys(SHELL_MESH).forEach(function (key) {
+                if (shellStyleMeshes[key]) return;
+                shellObject.traverse(function (obj) {
+                  if (obj.isMesh && obj.name.toLowerCase().indexOf(key) !== -1) shellStyleMeshes[key] = obj;
+                });
+              });
+              baldModel.add(shellObject);
+              applyShellVisibility();
+              refreshStatus();
+            },
+            undefined,
+            function (err) {
+              shellLoading = false;
+              shellError = err && err.message ? err.message : "unknown error";
+              refreshStatus();
+              if (window.NVToast) NVToast.error("Shell model failed to load");
+            }
+          );
+        }
+        function setShell(style, silent) {
+          state.shell = style;
+          var btns = document.querySelectorAll(".shell-pill");
+          for (var i = 0; i < btns.length; i++) {
+            btns[i].setAttribute("aria-pressed", btns[i].getAttribute("data-shell") === style ? "true" : "false");
+          }
+          if (style !== "none" && !shellLoaded) loadShell();
+          else { applyShellVisibility(); refreshStatus(); }
+          if (!silent) pushHistory();
+        }
+        var shellPills = document.querySelectorAll(".shell-pill");
+        for (var spi = 0; spi < shellPills.length; spi++) {
+          shellPills[spi].addEventListener("click", function () { setShell(this.getAttribute("data-shell")); });
+        }
+
+        /* ================= Model load ================= */
+
+        var loader = new THREE.GLTFLoader();
+        loader.load(
+          MODEL_URL,
+          function (gltf) {
+            baldModel = gltf.scene;
+            model = baldModel;
+            scene.add(model);
+            model.updateMatrixWorld(true);
+
+            meshes = []; morphMeshes = [];
+            model.traverse(function (obj) {
+              if (obj.isMesh) {
+                meshes.push(obj);
+                if (obj.morphTargetDictionary && obj.morphTargetInfluences) morphMeshes.push(obj);
+              }
+            });
+            // Index the meshes each paired feature offsets in asym mode.
+            Object.keys(PAIRS).forEach(function (n) {
+              pairMeshes[n] = meshes.filter(function (m) {
+                var nm = m.name.toLowerCase();
+                return PAIRS[n].parts.some(function (part) { return nm.indexOf(part) !== -1; });
+              });
+            });
+
+            // Bounding box from base positions only. THREE.Box3.setFromObject
+            // in r147 also folds morph-target positions into the box, which
+            // inflates the reading (1.15 m) beyond the model's true height
+            // (0.99 m, verified from the GLB's world-space bounds).
+            modelBox = new THREE.Box3();
+            var tmpV = new THREE.Vector3();
+            meshes.forEach(function (mesh) {
+              var pos = mesh.geometry && mesh.geometry.attributes.position;
+              if (!pos) return;
+              for (var vi = 0; vi < pos.count; vi++) {
+                tmpV.fromBufferAttribute(pos, vi).applyMatrix4(mesh.matrixWorld);
+                modelBox.expandByPoint(tmpV);
+              }
+            });
+
+            baldBox = modelBox;
+            computeViews(); goView("full");
+            applyLighting(state.light);
+            resize();
+
+            var size = modelBox.getSize(new THREE.Vector3());
+            baseStatus =
+              "Model loaded · " + meshes.length + " meshes · " + morphMeshes.length +
+              " with morphs · height " + size.y.toFixed(2) + " m";
+            if (state.shell !== "none") loadShell();
+            refreshStatus();
+          },
+          function (xhr) {
+            if (xhr && xhr.total) {
+              statusEl.textContent = "Loading model… " + Math.round((xhr.loaded / xhr.total) * 100) + "%";
+            }
+          },
+          function (err) {
+            statusEl.textContent = "Error loading GLB: " + (err && err.message ? err.message : "unknown error");
+            statusEl.className = "status err";
+            if (window.NVToast) NVToast.error("Model failed to load");
+          }
+        );
+
+
+        /* ================= Damped morph application =================
+           Every frame, each morph's live influence eases toward its target
+           (exponential damping, ~90 ms time constant) and is written to all
+           morph meshes in one pass — no per-slider full writes, so scrubbing
+           stays smooth. The asym lateral offset rides the same pass. */
+
+        var clock = new THREE.Clock();
+        function applyInfluences(dt) {
+          var k = 1 - Math.exp(-dt / 0.09);
+          var anyChange = false;
+          var j, name;
+          for (j = 0; j < ALL_MORPHS.length; j++) {
+            name = ALL_MORPHS[j];
+            var diff = influenceTgt[name] - influenceCur[name];
+            if (Math.abs(diff) > 0.0004) {
+              influenceCur[name] += diff * k;
+              anyChange = true;
+            } else if (influenceCur[name] !== influenceTgt[name]) {
+              influenceCur[name] = influenceTgt[name];
+              anyChange = true;
+            }
+          }
+          if (anyChange) {
+            for (var i = 0; i < morphMeshes.length; i++) {
+              var dict = morphMeshes[i].morphTargetDictionary;
+              var infl = morphMeshes[i].morphTargetInfluences;
+              for (j = 0; j < ALL_MORPHS.length; j++) {
+                var idx = dict[ALL_MORPHS[j]];
+                if (idx !== undefined) infl[idx] = influenceCur[ALL_MORPHS[j]];
+              }
+            }
+          }
+          // Asymmetry: half the L/R gap as a lateral offset on the
+          // feature's own meshes. Zero while symmetrical.
+          Object.keys(PAIRS).forEach(function (n) {
+            var list = pairMeshes[n];
+            if (!list || !list.length) return;
+            var off = state.symmetrical ? 0 : ((state.asym[n].l - state.asym[n].r) / 100) * PAIRS[n].shear;
+            // eyeSize and eyeGap share the eye meshes — combine, don't stomp.
+            list.forEach(function (m) { m.userData["asym_" + n] = off; });
+          });
+          // Apply combined offsets once per mesh.
+          var seen = {};
+          Object.keys(PAIRS).forEach(function (n) {
+            (pairMeshes[n] || []).forEach(function (m) {
+              if (seen[m.uuid]) return;
+              seen[m.uuid] = true;
+              var total = 0;
+              Object.keys(PAIRS).forEach(function (n2) {
+                total += m.userData["asym_" + n2] || 0;
+              });
+              m.position.x = total;
+            });
+          });
+        }
+
+        pushHistory(); // seed history with the neutral state
+        resize();
+        (function animate() {
+          requestAnimationFrame(animate);
+          var dt = Math.min(clock.getDelta(), 0.05);
+          applyInfluences(dt);
+          EditorCamera.update(dt);
+          renderer.render(scene, camera);
+        })();
+      })();
+    </script>
+    <script>
+      /* Infinity6 shell extras: Radio/Hexa dock wiring, Cmd+K palette.
+         Everything delegates to the console's existing controls — no state of its own. */
+      (function () {
+        "use strict";
+        function $(s, r) { return (r || document).querySelector(s); }
+        function $all(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
+        function click(sel) { var el = typeof sel === "string" ? $(sel) : sel; if (el && !el.disabled) el.click(); }
+
+        /* Hexa dock status mirrors the stage load status */
+        var dockStatus = document.getElementById("dockStatus");
+        var loadStatus = document.getElementById("loadStatus");
+        function syncDock() { if (dockStatus && loadStatus) dockStatus.textContent = loadStatus.textContent.replace(/^Error loading /, "ERR · "); }
+        if (loadStatus && window.MutationObserver) new MutationObserver(syncDock).observe(loadStatus, { childList: true, characterData: true, subtree: true });
+        syncDock(); setInterval(syncDock, 1500);
+
+        /* Radio dock: lighting + turntable delegate to the HUD controls */
+        $all("[data-dock-light]").forEach(function (b) {
+          b.addEventListener("click", function () { click('.light-btn[data-light="' + b.getAttribute("data-dock-light") + '"]'); });
+        });
+        var dockTurn = document.getElementById("dockTurntable");
+        var hudTurn = document.getElementById("btnTurntable");
+        if (dockTurn && hudTurn) {
+          dockTurn.addEventListener("click", function () { hudTurn.click(); });
+          new MutationObserver(function () {
+            var on = hudTurn.getAttribute("aria-pressed") === "true";
+            dockTurn.setAttribute("aria-pressed", on ? "true" : "false");
+            dockTurn.textContent = on ? "Turntable: On" : "Turntable";
+          }).observe(hudTurn, { attributes: true, attributeFilter: ["aria-pressed"] });
+        }
+        var dockUndo = document.getElementById("dockUndo"), dockRedo = document.getElementById("dockRedo");
+        var hudUndo = document.getElementById("btnUndo"), hudRedo = document.getElementById("btnRedo");
+        if (dockUndo && hudUndo) {
+          dockUndo.addEventListener("click", function () { hudUndo.click(); });
+          dockRedo.addEventListener("click", function () { hudRedo.click(); });
+          var syncUR = function () { dockUndo.disabled = hudUndo.disabled; dockRedo.disabled = hudRedo.disabled; };
+          new MutationObserver(syncUR).observe(hudUndo, { attributes: true, attributeFilter: ["disabled"] });
+          new MutationObserver(syncUR).observe(hudRedo, { attributes: true, attributeFilter: ["disabled"] });
+          syncUR();
+        }
+        /* ---------- Cmd+K command palette ---------- */
+        function openAcc(name) {
+          var acc = $('.acc[data-acc="' + name + '"]');
+          if (acc && !acc.classList.contains("open")) $(".acc-toggle", acc).click();
+          if (acc) acc.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }
+        var COMMANDS = [
+          { cat: "Camera", label: "Focus: Head / Face", run: function () { click('.cam-btn[data-view="head"]'); } },
+          { cat: "Camera", label: "Focus: Hairline", run: function () { click('.cam-btn[data-view="hairline"]'); } },
+          { cat: "Camera", label: "Focus: Upper Body", run: function () { click('.cam-btn[data-view="upper"]'); } },
+          { cat: "Camera", label: "Focus: Full Body", run: function () { click('.cam-btn[data-view="full"]'); } },
+          { cat: "Camera", label: "Focus: 3/4 Turnaround", run: function () { click('.cam-btn[data-view="turn"]'); } },
+          { cat: "Camera", label: "Toggle turntable auto-rotate", run: function () { click("#btnTurntable"); } },
+          { cat: "Idle", label: "Idle return: trigger camera return now", run: function () { click("#btnIdleNow"); } },
+          { cat: "Idle", label: "Idle return: toggle on / off", run: function () { click("#btnIdleToggle"); } },
+          { cat: "Lighting", label: "Neon", run: function () { click('.light-btn[data-light="neon"]'); } },
+          { cat: "Lighting", label: "Neutral", run: function () { click('.light-btn[data-light="neutral"]'); } },
+          { cat: "Lighting", label: "Dark", run: function () { click('.light-btn[data-light="chiaroscuro"]'); } },
+          { cat: "Morphs", label: "Toggle Symmetrical / Asymmetrical", run: function () { click("#btnSymmetry"); } },
+          { cat: "Morphs", label: "Randomize Face group", run: function () { openAcc("face"); click('[data-randomize="face"]'); } },
+          { cat: "Morphs", label: "Reset Face group", run: function () { openAcc("face"); click('[data-reset="face"]'); } },
+          { cat: "Morphs", label: "Randomize Body group", run: function () { openAcc("body"); click('[data-randomize="body"]'); } },
+          { cat: "Morphs", label: "Reset Body group", run: function () { openAcc("body"); click('[data-reset="body"]'); } },
+          { cat: "Hair", label: "Randomize Shell", run: function () { openAcc("hair"); click('[data-randomize="hair"]'); } },
+          { cat: "Hair", label: "Reset Shell", run: function () { openAcc("hair"); click('[data-reset="hair"]'); } },
+          { cat: "Hair", label: "Baby-hair: None", run: function () { openAcc("hair"); click('.shell-pill[data-shell="none"]'); } },
+          { cat: "Hair", label: "Baby-hair: Soft Swoop", run: function () { openAcc("hair"); click('.shell-pill[data-shell="swoop"]'); } },
+          { cat: "Hair", label: "Baby-hair: Delicate Curls", run: function () { openAcc("hair"); click('.shell-pill[data-shell="curls"]'); } },
+          { cat: "Hair", label: "Baby-hair: Feathered Wisps", run: function () { openAcc("hair"); click('.shell-pill[data-shell="wisps"]'); } },
+          { cat: "History", label: "Undo", run: function () { click("#btnUndo"); } },
+          { cat: "History", label: "Redo", run: function () { click("#btnRedo"); } },
+          { cat: "Panel", label: "Open Face accordion (11 morphs)", run: function () { openAcc("face"); } },
+          { cat: "Panel", label: "Open Body accordion (7 morphs)", run: function () { openAcc("body"); } },
+          { cat: "Panel", label: "Open Shell accordion", run: function () { openAcc("hair"); } },
+        ];
+        var backdrop = document.getElementById("paletteBackdrop");
+        var input = document.getElementById("paletteInput");
+        var list = document.getElementById("paletteList");
+        var filtered = COMMANDS.slice(), activeIdx = 0;
+        function renderPalette() {
+          list.innerHTML = "";
+          if (!filtered.length) {
+            var li = document.createElement("li"); li.className = "palette-empty"; li.textContent = "// NO MATCHING COMMAND"; list.appendChild(li); return;
+          }
+          filtered.forEach(function (cmd, i) {
+            var li = document.createElement("li");
+            var b = document.createElement("button");
+            b.type = "button"; b.className = "palette-item" + (i === activeIdx ? " active" : "");
+            var name = document.createElement("span"); name.textContent = cmd.label;
+            var cat = document.createElement("span"); cat.className = "cat"; cat.textContent = cmd.cat;
+            b.appendChild(name); b.appendChild(cat);
+            b.addEventListener("click", function () { runCmd(i); });
+            b.addEventListener("mousemove", function () { if (activeIdx !== i) { activeIdx = i; renderPalette(); } });
+            li.appendChild(b); list.appendChild(li);
+          });
+        }
+        function filterPalette() {
+          var q = input.value.trim().toLowerCase();
+          filtered = COMMANDS.filter(function (c) { return !q || (c.cat + " " + c.label).toLowerCase().indexOf(q) !== -1; });
+          activeIdx = 0; renderPalette();
+        }
+        function openPalette() {
+          backdrop.hidden = false; input.value = ""; filterPalette();
+          setTimeout(function () { input.focus(); }, 0);
+        }
+        function closePalette() { backdrop.hidden = true; }
+        function runCmd(i) { var cmd = filtered[i]; closePalette(); if (cmd) cmd.run(); }
+        input.addEventListener("input", filterPalette);
+        input.addEventListener("keydown", function (e) {
+          if (e.key === "ArrowDown") { e.preventDefault(); activeIdx = Math.min(activeIdx + 1, filtered.length - 1); renderPalette(); }
+          else if (e.key === "ArrowUp") { e.preventDefault(); activeIdx = Math.max(activeIdx - 1, 0); renderPalette(); }
+          else if (e.key === "Enter") { e.preventDefault(); runCmd(activeIdx); }
+        });
+        backdrop.addEventListener("click", function (e) { if (e.target === backdrop) closePalette(); });
+        document.getElementById("btnPalette").addEventListener("click", openPalette);
+        document.addEventListener("keydown", function (e) {
+          var mod = e.ctrlKey || e.metaKey;
+          if (mod && e.key.toLowerCase() === "k") {
+            e.preventDefault();
+            if (backdrop.hidden) openPalette(); else closePalette();
+          } else if (e.key === "Escape" && !backdrop.hidden) {
+            closePalette();
+          }
+        });
+      })();
+    </script>
+    <script src="../../nv-shell.js"></script>
+  </body>
+</html>
